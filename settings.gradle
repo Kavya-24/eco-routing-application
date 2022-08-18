@@ -1,0 +1,2 @@
+rootProject.name='EcoRoute'
+include ':app'

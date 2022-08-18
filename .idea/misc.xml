@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DesignSurface">
+    <option name="filePathToZoomLevelMap">
+      <map>
+        <entry key="..\:/BTP/EcoRoute/app/src/main/res/drawable/ic_baseline_cancel_24.xml" value="0.2355" />
+        <entry key="..\:/BTP/EcoRoute/app/src/main/res/drawable/ic_baseline_directions_24.xml" value="0.2355" />
+        <entry key="..\:/BTP/EcoRoute/app/src/main/res/drawable/ic_baseline_location_on_24.xml" value="0.2355" />
+        <entry key="..\:/BTP/EcoRoute/app/src/main/res/drawable/mapbox_user_icon_shadow.xml" value="0.2355" />
+        <entry key="..\:/BTP/EcoRoute/app/src/main/res/drawable/mapbox_user_puck_icon.xml" value="0.2355" />
+        <entry key="..\:/BTP/EcoRoute/app/src/main/res/drawable/search_box_cross_icon.xml" value="0.2355" />
+        <entry key="..\:/BTP/EcoRoute/app/src/main/res/drawable/search_box_go_icon.xml" value="0.2355" />
+        <entry key="..\:/BTP/EcoRoute/app/src/main/res/layout/activity_main.xml" value="0.22826086956521738" />
+        <entry key="..\:/BTP/EcoRoute/app/src/main/res/layout/activity_start_navigation.xml" value="0.192481884057971" />
+        <entry key="..\:/BTP/EcoRoute/app/src/main/res/layout/car_item.xml" value="0.22826086956521738" />
+        <entry key="..\:/BTP/EcoRoute/app/src/main/res/layout/ev_list_item.xml" value="0.20512820512820512" />
+        <entry key="..\:/BTP/EcoRoute/app/src/main/res/layout/fragment_dashboard.xml" value="0.22826086956521738" />
+        <entry key="..\:/BTP/EcoRoute/app/src/main/res/layout/fragment_home.xml" value="0.22826086956521738" />
+        <entry key="..\:/BTP/EcoRoute/app/src/main/res/layout/fragment_notifications.xml" value="0.22826086956521738" />
+        <entry key="..\:/BTP/EcoRoute/app/src/main/res/layout/search_query_view.xml" value="0.22826086956521738" />
+      </map>
+    </option>
+  </component>
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_11" project-jdk-name="1.8" project-jdk-type="JavaSDK">
+    <output url="file://$PROJECT_DIR$/build/classes" />
+  </component>
+  <component name="ProjectType">
+    <option name="id" value="Android" />
+  </component>
+</project>

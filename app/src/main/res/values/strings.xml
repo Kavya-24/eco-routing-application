@@ -1,0 +1,28 @@
+<resources>
+    <string name="app_name">EcoRoute</string>
+    <string name="title_home">Home</string>
+    <string name="title_dashboard">Dashboard</string>
+    <string name="title_notifications">Notifications</string>
+    <string name="choose_start_location">Choose start location</string>
+    <string name="choose_dst_location">Choose destination</string>
+    <string name="recharges">Recharges in %s h. Plug Type: %s</string>
+    <string name="select_car">Select Car</string>
+    <string name="charge_slider_desc">Input the initial charge of the car</string>
+    <string name="go">GO</string>
+    <string name="charging">Charging Percentage</string>
+    <string name="title_activity_start_navigation">StartNavigationActivity</string>
+
+
+    <!--    API and Interfaces-->
+    <string name="mapbox_access_token">pk.eyJ1Ijoia2F2eWEtMjQiLCJhIjoiY2w2Y2xhc2JpMW80MjNrcDNuZ3hwdDVxNSJ9.yRixm6cK2FVMVYiBk8AbDw</string>
+    <string name="mapbox_directions_route">directions/v5/mapbox/%s/%s?geometries=%s&amp;access_token=%s</string>
+
+
+    <!--#Errors-->
+    <string name="error_please_check_internet">Please check your internet connection</string>
+    <string name="error_request_timed_out">Request timed out</string>
+    <string name="error_something_went_wrong">Something went wrong</string>
+    <string name="direction_null">Directions not found</string>
+
+
+</resources>

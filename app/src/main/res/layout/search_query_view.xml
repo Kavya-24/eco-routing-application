@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingBottom="@dimen/space">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/csl_search_query_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/colorWhite"
+        android:padding="@dimen/space">
+
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/frame_start_location"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/til_query_ui_start_location"
+                style="@style/ThemeOverlay.Material3.TextInputEditText.OutlinedBox.Dense"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/space"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <AutoCompleteTextView
+                    android:id="@+id/query_ui_start_location"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:hint="@string/choose_start_location"
+                    android:paddingHorizontal="16dp" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/frame_end_location"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintTop_toBottomOf="@id/frame_start_location">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/til_query_ui_end_location"
+                style="@style/ThemeOverlay.Material3.TextInputEditText.OutlinedBox.Dense"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/space"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <AutoCompleteTextView
+                    android:id="@+id/query_ui_end_location"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:hint="@string/choose_start_location"
+                    android:paddingHorizontal="16dp" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilSelectCar"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/frame_end_location">
+
+
+            <AutoCompleteTextView
+                android:id="@+id/actv_selectCar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/select_car"
+                android:inputType="none" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+
+        <TextView
+            android:id="@+id/tvCharging"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
+            android:padding="@dimen/space_half"
+            android:text="@string/charging"
+            android:textSize="16sp"
+            app:layout_constraintTop_toBottomOf="@id/tilSelectCar" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderEvCharge"
+            style="@style/Myslider"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
+            android:contentDescription="@string/charge_slider_desc"
+            android:value="20"
+            android:valueFrom="0.0"
+            android:valueTo="100"
+            app:labelBehavior="visible"
+            app:layout_constraintTop_toBottomOf="@id/tvCharging"
+            app:thumbColor="@color/colorGreen"
+            app:thumbStrokeColor="@color/colorGreenAlpha"
+            app:tickColor="@color/colorAccent"
+            app:trackColorActive="@color/colorGreen" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/sliderEvCharge">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/mtbStartSearch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/go"
+                android:textColor="@color/colorWhite"
+                android:textStyle="bold"
+                app:backgroundTint="@color/colorAccent"
+                app:icon="@drawable/ic_baseline_directions_24"
+                app:iconGravity="textEnd"
+                app:iconSize="@dimen/space_4x" />
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>
