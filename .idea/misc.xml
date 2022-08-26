@@ -11,7 +11,9 @@
         <entry key="..\:/BTP/EcoRoute/app/src/main/res/drawable/search_box_cross_icon.xml" value="0.2355" />
         <entry key="..\:/BTP/EcoRoute/app/src/main/res/drawable/search_box_go_icon.xml" value="0.2355" />
         <entry key="..\:/BTP/EcoRoute/app/src/main/res/layout/activity_main.xml" value="0.22826086956521738" />
+        <entry key="..\:/BTP/EcoRoute/app/src/main/res/layout/activity_navigation.xml" value="0.22826086956521738" />
         <entry key="..\:/BTP/EcoRoute/app/src/main/res/layout/activity_start_navigation.xml" value="0.192481884057971" />
+        <entry key="..\:/BTP/EcoRoute/app/src/main/res/layout/activity_tile_query.xml" value="0.2501302761855133" />
         <entry key="..\:/BTP/EcoRoute/app/src/main/res/layout/car_item.xml" value="0.22826086956521738" />
         <entry key="..\:/BTP/EcoRoute/app/src/main/res/layout/ev_list_item.xml" value="0.20512820512820512" />
         <entry key="..\:/BTP/EcoRoute/app/src/main/res/layout/fragment_dashboard.xml" value="0.22826086956521738" />

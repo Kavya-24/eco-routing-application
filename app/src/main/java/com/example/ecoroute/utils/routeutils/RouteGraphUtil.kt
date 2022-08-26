@@ -29,10 +29,6 @@ object RouteGraphUtil {
         }
 
 
-        //create a list of the edges with appropriate weight, duration and height params
-        //Every step will result in a node as well.
-
-        //create list of nodes
         val graphNodes: MutableList<RouteGraph.RouteGraphNode> = mutableListOf()
         val graphEdges: MutableList<RouteGraph.RouteGraphEdge?> = mutableListOf()
 
@@ -120,7 +116,7 @@ object RouteGraphUtil {
         val special = (1..10).random()
 
         //Not a special node
-        return if (special <= 7) {
+        return if (special <= 8) {
             RouteGraph.RouteGraphNode(
                 _coordinates.longitude(),
                 _coordinates.latitude(),
@@ -130,16 +126,16 @@ object RouteGraphUtil {
                 1.0
             )
         }
-        //Special Node
+        //Special Node. Make it charge stop.
         else {
             val specialType = InitOptions.getRandomNodeWeightsForMapping()
             RouteGraph.RouteGraphNode(
                 _coordinates.longitude(),
                 _coordinates.latitude(),
                 if (!_coordinates.altitude().isNaN()) _coordinates.altitude() else 200.0,
-                specialType.key,
-                -specialType.value.first,
-                specialType.value.second
+                "EV",
+                (1000..5000).random().toDouble(),
+                (3600..7200).random().toDouble()
             )
         }
 

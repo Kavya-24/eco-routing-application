@@ -1,6 +1,5 @@
 package com.example.ecoroute.interfaces
 
-import android.content.Context
 import androidx.annotation.Keep
 import com.jakewharton.retrofit2.adapter.kotlin.coroutines.CoroutineCallAdapterFactory
 import retrofit2.Retrofit
@@ -12,14 +11,13 @@ object RetrofitClient {
     val TAG = RetrofitClient::class.java.simpleName
 
 
-    fun makeMapboxAPICalls(): directionInterface {
-
+    fun navigationAPICalls(): navigationInterface {
         return Retrofit.Builder()
             .baseUrl(url)
             .addConverterFactory(MoshiConverterFactory.create())
             .addCallAdapterFactory(CoroutineCallAdapterFactory())
-            .build().create(directionInterface::class.java)
-
+            .build().create(navigationInterface::class.java)
     }
+
 
 }

@@ -1,39 +1,61 @@
 package com.example.ecoroute.ui
 
-import android.annotation.SuppressLint
+
 import android.content.Context
+import android.content.pm.PackageManager
 import android.content.res.Configuration
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
+import android.graphics.Color
 import android.location.Location
 import android.os.Bundle
+import android.util.Log
 import android.view.View
-import android.widget.*
+import android.widget.ProgressBar
+import android.widget.ScrollView
+import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.viewModels
-import androidx.annotation.DrawableRes
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.content.res.AppCompatResources
-import androidx.cardview.widget.CardView
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.ecoroute.R
-import com.example.ecoroute.models.RouteGraph
-import com.example.ecoroute.models.responses.DirectionRouteResponse
-import com.example.ecoroute.utils.MapConstants.followingPadding
-import com.example.ecoroute.utils.MapConstants.landscapeFollowingPadding
-import com.example.ecoroute.utils.MapConstants.landscapeOverviewPadding
-import com.example.ecoroute.utils.MapConstants.overviewPadding
+import com.example.ecoroute.models.responses.IsochronePolygonResponse
+import com.example.ecoroute.utils.LocationPermissionHelper
+import com.example.ecoroute.utils.MapConstants
+import com.example.ecoroute.utils.UiUtils
 import com.example.ecoroute.utils.routeutils.RouteGraphUtil
 import com.example.ecoroute.utils.routeutils.RouteModelling
 import com.mapbox.api.directions.v5.models.Bearing
 import com.mapbox.api.directions.v5.models.DirectionsRoute
 import com.mapbox.api.directions.v5.models.RouteOptions
+import com.mapbox.api.isochrone.IsochroneCriteria
+import com.mapbox.api.isochrone.MapboxIsochrone
 import com.mapbox.bindgen.Expected
+import com.mapbox.geojson.FeatureCollection
 import com.mapbox.geojson.Point
+import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
 import com.mapbox.maps.MapboxMap
 import com.mapbox.maps.Style
+import com.mapbox.maps.extension.style.expressions.generated.Expression.Companion.concat
+import com.mapbox.maps.extension.style.expressions.generated.Expression.Companion.eq
+import com.mapbox.maps.extension.style.expressions.generated.Expression.Companion.geometryType
+import com.mapbox.maps.extension.style.expressions.generated.Expression.Companion.get
+import com.mapbox.maps.extension.style.expressions.generated.Expression.Companion.interpolate
+import com.mapbox.maps.extension.style.expressions.generated.Expression.Companion.literal
+import com.mapbox.maps.extension.style.layers.addLayer
+import com.mapbox.maps.extension.style.layers.addLayerBelow
+import com.mapbox.maps.extension.style.layers.generated.FillLayer
+import com.mapbox.maps.extension.style.layers.generated.LineLayer
+import com.mapbox.maps.extension.style.layers.generated.SymbolLayer
+import com.mapbox.maps.extension.style.layers.generated.symbolLayer
+import com.mapbox.maps.extension.style.layers.getLayerAs
+import com.mapbox.maps.extension.style.layers.properties.generated.SymbolPlacement
+import com.mapbox.maps.extension.style.sources.addSource
+import com.mapbox.maps.extension.style.sources.generated.GeoJsonSource
+import com.mapbox.maps.extension.style.sources.generated.geoJsonSource
+import com.mapbox.maps.extension.style.sources.getSourceAs
+import com.mapbox.maps.extension.style.style
 import com.mapbox.maps.plugin.LocationPuck2D
 import com.mapbox.maps.plugin.animation.camera
 import com.mapbox.maps.plugin.annotation.annotations
@@ -45,9 +67,7 @@ import com.mapbox.navigation.base.TimeFormat
 import com.mapbox.navigation.base.extensions.applyDefaultNavigationOptions
 import com.mapbox.navigation.base.extensions.applyLanguageAndVoiceUnitOptions
 import com.mapbox.navigation.base.options.NavigationOptions
-import com.mapbox.navigation.base.route.RouterCallback
-import com.mapbox.navigation.base.route.RouterFailure
-import com.mapbox.navigation.base.route.RouterOrigin
+import com.mapbox.navigation.base.route.*
 import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.MapboxNavigationProvider
 import com.mapbox.navigation.core.directions.session.RoutesObserver
@@ -78,9 +98,9 @@ import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineApi
 import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineView
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineOptions
 import com.mapbox.navigation.ui.maps.route.line.model.RouteLine
+import com.mapbox.navigation.ui.maps.route.line.model.toNavigationRouteLines
 import com.mapbox.navigation.ui.tripprogress.api.MapboxTripProgressApi
 import com.mapbox.navigation.ui.tripprogress.model.*
-import com.mapbox.navigation.ui.tripprogress.view.MapboxTripProgressView
 import com.mapbox.navigation.ui.voice.api.MapboxSpeechApi
 import com.mapbox.navigation.ui.voice.api.MapboxVoiceInstructionsPlayer
 import com.mapbox.navigation.ui.voice.model.SpeechAnnouncement
@@ -88,92 +108,47 @@ import com.mapbox.navigation.ui.voice.model.SpeechError
 import com.mapbox.navigation.ui.voice.model.SpeechValue
 import com.mapbox.navigation.ui.voice.model.SpeechVolume
 import com.mapbox.navigation.ui.voice.view.MapboxSoundButton
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import java.lang.ref.WeakReference
 import java.util.*
 
+
 class NavigationActivity : AppCompatActivity() {
-    private companion object {
-        private const val BUTTON_ANIMATION_DURATION = 1500L
-    }
 
-    /**
-     * Debug tool used to play, pause and seek route progress events that can be used to produce mocked location updates along the route.
-     */
+
+    private val viewmodel: NavigationViewModel by viewModels()
+    private lateinit var pb: ProgressBar
+    private lateinit var csl_view: ConstraintLayout
+
+    private val ISOCHRONE_RESPONSE_GEOJSON_SOURCE_ID = "ISOCHRONE_RESPONSE_GEOJSON_SOURCE_ID"
+    private val ISOCHRONE_FILL_LAYER = "ISOCHRONE_FILL_LAYER"
+    private val ISOCHRONE_LINE_LAYER = "ISOCHRONE_LINE_LAYER"
+    private val TIME_LABEL_LAYER_ID = "TIME_LABEL_LAYER_ID"
+    private val MAP_CLICK_SOURCE_ID = "MAP_CLICK_SOURCE_ID"
+    private val MAP_CLICK_MARKER_ICON_ID = "MAP_CLICK_MARKER_ICON_ID"
+    private val MAP_CLICK_MARKER_LAYER_ID = "MAP_CLICK_MARKER_LAYER_ID"
+    private var usePolygon = false
+
     private val mapboxReplayer = MapboxReplayer()
-
-    /**
-     * Debug tool that mocks location updates with an input from the [mapboxReplayer].
-     */
     private val replayLocationEngine = ReplayLocationEngine(mapboxReplayer)
-
-    /**
-     * Debug observer that makes sure the replayer has always an up-to-date information to generate mock updates.
-     */
     private val replayProgressObserver = ReplayProgressObserver(mapboxReplayer)
 
 
-    /**
-     * Mapbox MapView entry point obtained from the [MapView].
-     */
-    private lateinit var mapView: MapView
-
-    /**
-     * Mapbox Maps entry point obtained from the [MapView].
-     * You need to get a new reference to this object whenever the [MapView] is recreated.
-     */
-    private lateinit var mapboxMap: MapboxMap
-
-    /**
-     * Mapbox Navigation entry point. There should only be one instance of this object for the app.
-     * You can use [MapboxNavigationProvider] to help create and obtain that instance.
-     */
-    private lateinit var mapboxNavigation: MapboxNavigation
-
-    /**
-     * Used to execute camera transitions based on the data generated by the [viewportDataSource].
-     * This includes transitions from route overview to route following and continuously updating the camera as the location changes.
-     */
     private lateinit var navigationCamera: NavigationCamera
 
-    /**
-     * Produces the camera frames based on the location and routing data for the [navigationCamera] to execute.
-     */
     private lateinit var viewportDataSource: MapboxNavigationViewportDataSource
 
-
-    /**
-     * Generates updates for the [MapboxManeuverView] to display the upcoming maneuver instructions
-     * and remaining distance to the maneuver point.
-     */
     private lateinit var maneuverApi: MapboxManeuverApi
-
-    /**
-     * Generates updates for the [MapboxTripProgressView] that include remaining time and distance to the destination.
-     */
     private lateinit var tripProgressApi: MapboxTripProgressApi
-
-    /**
-     * Generates updates for the [routeLineView] with the geometries and properties of the routes that should be drawn on the map.
-     */
     private lateinit var routeLineApi: MapboxRouteLineApi
-
-    /**
-     * Draws route lines on the map based on the data from the [routeLineApi]
-     */
     private lateinit var routeLineView: MapboxRouteLineView
-
-    /**
-     * Generates updates for the [routeArrowView] with the geometries and properties of maneuver arrows that should be drawn on the map.
-     */
     private val routeArrowApi: MapboxRouteArrowApi = MapboxRouteArrowApi()
 
-    /**
-     * Draws maneuver arrows on the map based on the data [routeArrowApi].
-     */
     private lateinit var routeArrowView: MapboxRouteArrowView
 
-    /**
-     * Stores and updates the state of whether the voice instructions should be played as they come or muted.
-     */
+    private val BUTTON_ANIMATION_DURATION = 1500L
     private var isVoiceInstructionsMuted = false
         set(value) {
             field = value
@@ -190,41 +165,23 @@ class NavigationActivity : AppCompatActivity() {
             }
         }
 
-    /**
-     * Extracts message that should be communicated to the driver about the upcoming maneuver.
-     * When possible, downloads a synthesized audio file that can be played back to the driver.
-     */
     private lateinit var speechApi: MapboxSpeechApi
-
-    /**
-     * Plays the synthesized audio files with upcoming maneuver instructions
-     * or uses an on-device Text-To-Speech engine to communicate the message to the driver.
-     */
     private lateinit var voiceInstructionsPlayer: MapboxVoiceInstructionsPlayer
 
-    /**
-     * Observes when a new voice instruction should be played.
-     */
     private val voiceInstructionsObserver = VoiceInstructionsObserver { voiceInstructions ->
         speechApi.generate(voiceInstructions, speechCallback)
     }
 
-    /**
-     * Based on whether the synthesized audio file is available, the callback plays the file
-     * or uses the fall back which is played back using the on-device Text-To-Speech engine.
-     */
     private val speechCallback =
         MapboxNavigationConsumer<Expected<SpeechError, SpeechValue>> { expected ->
             expected.fold(
                 { error ->
-// play the instruction via fallback text-to-speech engine
                     voiceInstructionsPlayer.play(
                         error.fallback,
                         voiceInstructionsPlayerCallback
                     )
                 },
                 { value ->
-// play the sound file from the external generator
                     voiceInstructionsPlayer.play(
                         value.announcement,
                         voiceInstructionsPlayerCallback
@@ -233,48 +190,28 @@ class NavigationActivity : AppCompatActivity() {
             )
         }
 
-    /**
-     * When a synthesized audio file was downloaded, this callback cleans up the disk after it was played.
-     */
     private val voiceInstructionsPlayerCallback =
         MapboxNavigationConsumer<SpeechAnnouncement> { value ->
-// remove already consumed file to free-up space
             speechApi.clean(value)
         }
 
-    /**
-     * [NavigationLocationProvider] is a utility class that helps to provide location updates generated by the Navigation SDK
-     * to the Maps SDK in order to update the user location indicator on the map.
-     */
-    private val navigationLocationProvider = NavigationLocationProvider()
 
-    /**
-     * Gets notified with location updates.
-     *
-     * Exposes raw updates coming directly from the location services
-     * and the updates enhanced by the Navigation SDK (cleaned up and matched to the road).
-     */
     private val locationObserver = object : LocationObserver {
         var firstLocationUpdateReceived = false
 
         override fun onNewRawLocation(rawLocation: Location) {
-// not handled
         }
 
         override fun onNewLocationMatcherResult(locationMatcherResult: LocationMatcherResult) {
             val enhancedLocation = locationMatcherResult.enhancedLocation
-// update location puck's position on the map
             navigationLocationProvider.changePosition(
                 location = enhancedLocation,
                 keyPoints = locationMatcherResult.keyPoints,
             )
 
-// update camera position to account for new location
             viewportDataSource.onLocationChanged(enhancedLocation)
             viewportDataSource.evaluate()
 
-// if this is the first location update the activity has received,
-// it's best to immediately move the camera to the current user location
             if (!firstLocationUpdateReceived) {
                 firstLocationUpdateReceived = true
                 navigationCamera.requestNavigationCameraToOverview(
@@ -286,9 +223,6 @@ class NavigationActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Gets notified with progress along the currently active route.
-     */
     private val routeProgressObserver = RouteProgressObserver { routeProgress ->
 
         // update the camera position to account for the progressed fragment of the route
@@ -302,7 +236,6 @@ class NavigationActivity : AppCompatActivity() {
             routeArrowView.renderManeuverUpdate(style, maneuverArrowResult)
         }
 
-        // update top banner with maneuver instructions
         val maneuvers = maneuverApi.getManeuvers(routeProgress)
         maneuvers.fold(
             { error ->
@@ -313,44 +246,39 @@ class NavigationActivity : AppCompatActivity() {
                 ).show()
             },
             {
-                findViewById<MapboxManeuverView>(R.id.maneuverView).visibility = View.VISIBLE
-                findViewById<MapboxManeuverView>(R.id.maneuverView).renderManeuvers(maneuvers)
+                findViewById<MapboxManeuverView>(com.example.ecoroute.R.id.maneuverView).visibility =
+                    View.VISIBLE
+                findViewById<MapboxManeuverView>(com.example.ecoroute.R.id.maneuverView).renderManeuvers(
+                    maneuvers
+                )
             }
         )
 
-
-        // update bottom trip progress summary
-        findViewById<MapboxTripProgressView>(R.id.tripProgressView).render(
-            tripProgressApi.getTripProgress(routeProgress)
-        )
+//        findViewById<MapboxTripProgressView>(R.id.tripProgressView).render(
+//            tripProgressApi.getTripProgress(routeProgress)
+//        )
     }
 
-    /**
-     * Gets notified whenever the tracked routes change.
-     *
-     * A change can mean:
-     * - routes get changed with [MapboxNavigation.setRoutes]
-     * - routes annotations get refreshed (for example, congestion annotation that indicate the live traffic along the route)
-     * - driver got off route and a reroute was executed
-     */
     private val routesObserver = RoutesObserver { routeUpdateResult ->
-        if (routeUpdateResult.routes.isNotEmpty()) {
-// generate route geometries asynchronously and render them
-            val routeLines = routeUpdateResult.routes.map { RouteLine(it, null) }
+        if (routeUpdateResult.navigationRoutes.toDirectionsRoutes().isNotEmpty()) {
 
-            routeLineApi.setRoutes(
+            val routeLines = routeUpdateResult.navigationRoutes.toDirectionsRoutes()
+                .map { RouteLine(it, null) }
+
+            routeLineApi.setNavigationRouteLines(
                 routeLines
+                    .toNavigationRouteLines()
             ) { value ->
                 mapboxMap.getStyle()?.apply {
                     routeLineView.renderRouteDrawData(this, value)
                 }
             }
 
-// update the camera position to account for the new route
-            viewportDataSource.onRouteChanged(routeUpdateResult.routes.first())
+            viewportDataSource.onRouteChanged(
+                routeUpdateResult.navigationRoutes.toDirectionsRoutes().first().toNavigationRoute()
+            )
             viewportDataSource.evaluate()
         } else {
-// remove the route line and route arrow from the map
             val style = mapboxMap.getStyle()
             if (style != null) {
                 routeLineApi.clearRouteLine { value ->
@@ -362,41 +290,124 @@ class NavigationActivity : AppCompatActivity() {
                 routeArrowView.render(style, routeArrowApi.clearArrows())
             }
 
-// remove the route reference from camera position evaluations
             viewportDataSource.clearRouteData()
             viewportDataSource.evaluate()
         }
     }
 
-    private val viewModel: NavigationViewModel by viewModels()
-    private lateinit var pb: ProgressBar
+
+    private lateinit var mapView: MapView
+    private lateinit var mapboxMap: MapboxMap
+    private lateinit var mapboxNavigation: MapboxNavigation
+
+    private val navigationLocationProvider = NavigationLocationProvider()
+    private lateinit var locationPermissionHelper: LocationPermissionHelper
 
     private lateinit var sv: ScrollView
     private lateinit var tv: TextView
 
-    @SuppressLint("MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_start_navigation)
+        setContentView(com.example.ecoroute.R.layout.activity_navigation)
+
+        mapView = findViewById(R.id.mapView)
+        mapboxMap = mapView.getMapboxMap()
 
         sv = findViewById(R.id.sv_details)
         tv = findViewById(R.id.tv_details)
         pb = findViewById(R.id.pb_navigation)
-        mapView = findViewById(R.id.mapView)
+        csl_view = findViewById(R.id.csl_navigation)
 
-        mapboxMap = mapView.getMapboxMap()
+        locationPermissionHelper = LocationPermissionHelper(WeakReference(this))
+        locationPermissionHelper.checkPermissions {
+            onMapReady()
+        }
+
+
+    }
+
+    private fun onMapReady() {
+
+
+//        // load map style
+//        mapboxMap.loadStyleUri(
+//            Style.MAPBOX_STREETS
+//        ) { it ->
+//
+//
+//
+//            initFillLayer(it)
+//            initLineLayer(it)
+//            //This is on style loaded
+//            mapView.gestures.addOnMapLongClickListener { point ->
+//                findRoute(point)
+//                true
+//            }
+//
+//            mapView.gestures.addOnMapClickListener { point ->
+//                createIsochronePolygons(point, style = it)
+//                true
+//            }
+//
+//
+//        }
+
+
+        mapboxMap.loadStyle(
+            style(styleUri = Style.MAPBOX_STREETS) {
+
+
+            }, object : Style.OnStyleLoaded {
+                override fun onStyleLoaded(style: Style) {
+
+                    UiUtils().bitmapFromDrawableRes(
+                        this@NavigationActivity,
+                        R.drawable.ic_baseline_location_on_24
+                    )?.let {
+                        style.addImage(
+                            MAP_CLICK_MARKER_ICON_ID, it
+                        )
+
+                    }
+                    style.addSource(geoJsonSource(id = MAP_CLICK_SOURCE_ID))
+                    style.addSource(geoJsonSource(ISOCHRONE_RESPONSE_GEOJSON_SOURCE_ID))
+                    style.addLayer(symbolLayer(MAP_CLICK_MARKER_LAYER_ID, MAP_CLICK_SOURCE_ID) {
+                        iconImage(MAP_CLICK_MARKER_ICON_ID)
+                        iconIgnorePlacement(true)
+                        iconAllowOverlap(true)
+                        iconOffset(listOf(0.0, -4.0))
+                    })
+
+                    initLineLayer(style)
+                    initFillLayer(style)
+
+                    mapView.gestures.addOnMapLongClickListener {
+                        findRoute(it)
+                        true
+                    }
+
+                    mapView.gestures.addOnMapClickListener {
+                        createIsochronePolygons(it, style)
+                        true
+                    }
+                }
+            }
+
+        )
 
 
         mapView.location.apply {
             this.locationPuck = LocationPuck2D(
                 bearingImage = ContextCompat.getDrawable(
                     this@NavigationActivity,
-                    R.drawable.mapbox_navigation_puck_icon
+                    com.example.ecoroute.R.drawable.mapbox_navigation_puck_icon
                 )
             )
             setLocationProvider(navigationLocationProvider)
             enabled = true
         }
+
+
 
         mapboxNavigation = if (MapboxNavigationProvider.isCreated()) {
             MapboxNavigationProvider.retrieve()
@@ -409,6 +420,8 @@ class NavigationActivity : AppCompatActivity() {
             )
         }
 
+
+
         viewportDataSource = MapboxNavigationViewportDataSource(mapboxMap)
         navigationCamera = NavigationCamera(
             mapboxMap,
@@ -419,25 +432,29 @@ class NavigationActivity : AppCompatActivity() {
         mapView.camera.addCameraAnimationsLifecycleListener(
             NavigationBasicGesturesHandler(navigationCamera)
         )
+
         navigationCamera.registerNavigationCameraStateChangeObserver { navigationCameraState ->
-// shows/hide the recenter button depending on the camera state
+
+
             when (navigationCameraState) {
                 NavigationCameraState.TRANSITION_TO_FOLLOWING,
                 NavigationCameraState.FOLLOWING -> findViewById<MapboxRecenterButton>(R.id.recenter).visibility =
                     View.INVISIBLE
                 NavigationCameraState.TRANSITION_TO_OVERVIEW,
                 NavigationCameraState.OVERVIEW,
-                NavigationCameraState.IDLE -> findViewById<MapboxRecenterButton>(R.id.recenter).visibility =
-                    View.VISIBLE
+                NavigationCameraState.IDLE ->
+
+                    findViewById<MapboxRecenterButton>(R.id.recenter).visibility =
+                        View.VISIBLE
             }
         }
 
         if (this.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            viewportDataSource.overviewPadding = landscapeOverviewPadding
-            viewportDataSource.followingPadding = landscapeFollowingPadding
+            viewportDataSource.overviewPadding = MapConstants.landscapeOverviewPadding
+            viewportDataSource.followingPadding = MapConstants.landscapeFollowingPadding
         } else {
-            viewportDataSource.overviewPadding = overviewPadding
-            viewportDataSource.followingPadding = followingPadding
+            viewportDataSource.overviewPadding = MapConstants.overviewPadding
+            viewportDataSource.followingPadding = MapConstants.followingPadding
         }
 
         // make sure to use the same DistanceFormatterOptions across different features
@@ -493,21 +510,10 @@ class NavigationActivity : AppCompatActivity() {
         val routeArrowOptions = RouteArrowOptions.Builder(this).build()
         routeArrowView = MapboxRouteArrowView(routeArrowOptions)
 
-        // load map style
-        mapboxMap.loadStyleUri(
-            Style.MAPBOX_STREETS
-        ) {
-// add long click listener that search for a route to the clicked destination
-            mapView.gestures.addOnMapLongClickListener { point ->
-                findRoute(point)
-                true
-            }
-        }
 
-        // initialize view interactions
-        findViewById<ImageView>(R.id.stop).setOnClickListener {
-            clearRouteAndStopNavigation()
-        }
+//        findViewById<ImageView>(R.id.stop).setOnClickListener {
+//            clearRouteAndStopNavigation()
+//        }
         findViewById<MapboxRecenterButton>(R.id.recenter).setOnClickListener {
             navigationCamera.requestNavigationCameraToFollowing()
             findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).showTextAndExtend(
@@ -521,16 +527,324 @@ class NavigationActivity : AppCompatActivity() {
             )
         }
         findViewById<MapboxSoundButton>(R.id.soundButton).setOnClickListener {
-// mute/unmute voice instructions
             isVoiceInstructionsMuted = !isVoiceInstructionsMuted
         }
 
         // set initial sounds button state
         findViewById<MapboxSoundButton>(R.id.soundButton).unmute()
 
-        // start the trip session to being receiving location updates in free drive
-        // and later when a route is set also receiving route progress updates
+
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+
+            return
+        }
+
+
         mapboxNavigation.startTripSession()
+    }
+
+    private fun createIsochronePolygons(originPoint: Point, style: Style) {
+
+        Toast.makeText(this, originPoint.toJson().toString(), Toast.LENGTH_LONG).show()
+
+        val mapboxIsochroneRequest = MapboxIsochrone.builder()
+            .accessToken(getString(com.example.ecoroute.R.string.mapbox_access_token))
+            .profile(IsochroneCriteria.PROFILE_DRIVING)
+            .addContoursMinutes(60)
+            .polygons(usePolygon)
+            .addContoursColors("4286f4")
+            .generalize(2f)
+            .denoise(.4f)
+            .coordinates(
+                Point.fromLngLat(
+                    originPoint.longitude(),
+                    originPoint.latitude()
+                )
+            )
+            .build()
+
+        mapboxIsochroneRequest.enqueueCall(object : Callback<FeatureCollection?> {
+
+            override fun onResponse(
+                call: Call<FeatureCollection?>?,
+                response: Response<FeatureCollection?>
+            ) {
+
+                Log.e("Navigation", "In response")
+                if (response.body() != null && response.body()!!.features() != null) {
+                    Log.e("Navigation", "Response body not null value = \n ${response.body()}")
+                    val source =
+                        style.getSourceAs<GeoJsonSource>(ISOCHRONE_RESPONSE_GEOJSON_SOURCE_ID)
+
+                    if (source != null && response.body()!!.features()!!.size > 0) {
+                        source.featureCollection(response.body()!!)
+                    }
+
+                    //Line Layer
+                    if (!usePolygon) {
+                        mapboxMap.getStyle { style ->
+                            var timeLabelSymbolLayer: SymbolLayer
+
+                            // Check to see whether the LineLayer for time labels has already been created
+                            if (style.getLayerAs<SymbolLayer>(TIME_LABEL_LAYER_ID) == null) {
+                                timeLabelSymbolLayer = SymbolLayer(
+                                    TIME_LABEL_LAYER_ID,
+                                    ISOCHRONE_RESPONSE_GEOJSON_SOURCE_ID
+                                )
+                                timeLabelSymbolLayer = styleLineLayer(timeLabelSymbolLayer)
+                                style.addLayer(timeLabelSymbolLayer)
+
+                            } else {
+                                styleLineLayer(style.getLayerAs<SymbolLayer>(TIME_LABEL_LAYER_ID)!!)
+                            }
+                        }
+                    }
+
+                    val currentZoom = mapboxMap.cameraState.zoom
+
+                    if (currentZoom > 14) {
+
+                        mapboxMap.setCamera(
+                            CameraOptions.Builder()
+                                .zoom(currentZoom - 4.5)
+                                .build()
+                        )
+
+                    }
+
+
+                }
+            }
+
+            override fun onFailure(call: Call<FeatureCollection?>?, throwable: Throwable) {
+                UiUtils().showSnackbar(
+                    csl_view,
+                    UiUtils().returnStateMessageForThrowable(throwable)
+                )
+                UiUtils().logThrowables("Navigation", throwable)
+            }
+        })
+
+
+    }
+
+    private fun initViews(mResponse: IsochronePolygonResponse?) {
+
+        if (mResponse != null) {
+
+            Toast.makeText(this, mResponse.toString(), Toast.LENGTH_LONG).show()
+
+        }
+
+
+    }
+
+
+    /** Use the Maps SDK's data-driven styling properties to style the
+    the time label LineLayer */
+
+    private fun styleLineLayer(timeLabelLayerToStyle: SymbolLayer): SymbolLayer {
+
+        return timeLabelLayerToStyle.apply {
+            textField(concat(get("contour"), literal(" MIN")))
+            textFont(listOf("DIN Offc Pro Bold", "Roboto Black"))
+            symbolPlacement(SymbolPlacement.LINE)
+            textAllowOverlap(true)
+            textPadding(1.0)
+            textMaxAngle(90.0)
+            textLetterSpacing(0.1)
+            textHaloColor(Color.parseColor("#343332"))
+            textColor(Color.parseColor("#000000"))
+            textHaloWidth(4.0)
+
+        }
+
+
+    }
+
+    /**
+     * Add a FillLayer so that that polygons returned by the Isochrone API response can be displayed
+     */
+    private fun initFillLayer(style: Style) {
+        // Create and style a FillLayer based on information in the Isochrone API response
+        val isochroneFillLayer =
+            FillLayer(ISOCHRONE_FILL_LAYER, ISOCHRONE_RESPONSE_GEOJSON_SOURCE_ID)
+
+        isochroneFillLayer.fillColor(Color.parseColor("#4286f4"))
+        isochroneFillLayer.fillOpacity(0.4)
+        isochroneFillLayer.filter(eq(geometryType(), literal("Polygon")))
+        style.addLayerBelow(isochroneFillLayer, MAP_CLICK_MARKER_LAYER_ID)
+    }
+
+    /**
+     * Add a LineLayer so that that lines returned by the Isochrone API response can be displayed
+     */
+    private fun initLineLayer(style: Style) {
+        // Create and style a LineLayer based on information in the Isochrone API response
+        val isochroneLineLayer =
+            LineLayer(
+                ISOCHRONE_LINE_LAYER,
+                ISOCHRONE_RESPONSE_GEOJSON_SOURCE_ID
+            )
+
+        isochroneLineLayer.lineColor(Color.parseColor("#4286f4"))
+        isochroneLineLayer.lineWidth(5.0)
+        isochroneLineLayer.lineOpacity(.8)
+        isochroneLineLayer.filter(eq(geometryType(), literal("LineString")))
+        style.addLayerBelow(isochroneLineLayer, MAP_CLICK_MARKER_LAYER_ID)
+    }
+
+    private fun findRoute(point: Point) {
+
+        Toast.makeText(this, point.toJson().toString(), Toast.LENGTH_LONG).show()
+        addAnnotationToMap(point.longitude(), point.latitude())
+
+        val originLocation = navigationLocationProvider.lastLocation
+        val originPoint = originLocation?.let {
+            Point.fromLngLat(it.longitude, it.latitude)
+        } ?: return
+
+        val destinationPoint = point
+
+
+        mapboxNavigation.requestRoutes(
+            RouteOptions.builder()
+                .applyDefaultNavigationOptions()
+                .applyLanguageAndVoiceUnitOptions(this)
+                .coordinatesList(listOf(originPoint, destinationPoint))
+                .bearingsList(
+                    listOf(
+                        Bearing.builder()
+                            .angle(originLocation.bearing.toDouble())
+                            .degrees(45.0)
+                            .build(),
+                        null
+                    )
+                )
+                .layersList(listOf(mapboxNavigation.getZLevel(), null))
+                .build(),
+            object : RouterCallback {
+                override fun onRoutesReady(
+                    routes: List<DirectionsRoute>,
+                    routerOrigin: RouterOrigin
+                ) {
+                    setRouteAndStartNavigation(routes, originPoint, destinationPoint)
+
+                }
+
+                override fun onFailure(
+                    reasons: List<RouterFailure>,
+                    routeOptions: RouteOptions
+                ) {
+                }
+
+                override fun onCanceled(routeOptions: RouteOptions, routerOrigin: RouterOrigin) {
+                }
+            }
+        )
+
+    }
+
+    private fun setRouteAndStartNavigation(
+        routes: List<DirectionsRoute>,
+        sourcePoint: Point,
+        destinationPoint: Point
+    ) {
+
+
+        mapboxNavigation.setNavigationRoutes(routes.toNavigationRoutes())
+
+        val src = RouteGraphUtil.convertTerminalsToNode(sourcePoint, "SOURCE")
+        val dst = RouteGraphUtil.convertTerminalsToNode(destinationPoint, "DESTINATION")
+
+        val routeGraph = RouteGraphUtil.getRouteGraphInstance(routes, src, dst)
+
+
+        if (routeGraph != null) {
+
+
+            var c = ""
+
+            //Model the graph
+
+            val graphPath =
+                RouteModelling.modelGraph(routeGraph, src, dst, 1000.0)
+            val modelledGraphPath = graphPath.first
+            val modelledGraphLogs = graphPath.second
+
+
+            c += "\nSOURCE:  ${src.node_longitude},${src.node_latitude},${src.node_description},${src.node_weight},${src.node_time},${src.node_height}"
+            c += "\nDST: ${dst.node_longitude},${dst.node_latitude},${dst.node_description},${dst.node_weight},${dst.node_time},${dst.node_height}"
+
+            //Add the graph details
+            c += "\nGraphNodes: size = ${routeGraph.graph_nodes.size}:"
+            for (j in 0 until routeGraph.graph_nodes.size) {
+                val i = routeGraph.graph_nodes[j]
+                c += "\n ${i.node_longitude},${i.node_latitude},${i.node_description},${i.node_weight},${i.node_time},${i.node_height}"
+            }
+
+            c += "\nGraphEdges: size = ${routeGraph.graph_edges.size}:"
+            for (j in 0 until routeGraph.graph_edges.size) {
+                val i = routeGraph.graph_edges[j]!!
+                c += "\n" + i.edge_start_node.node_longitude.toString() + "," + i.edge_end_node.node_longitude.toString() + ": " + i.edge_weight.toString()
+            }
+
+
+            c += modelledGraphLogs
+            c += "\nModelled distance =  ${modelledGraphPath.second} with path : \n"
+
+            for (i in 0 until modelledGraphPath.first.size) {
+                c += modelledGraphPath.first[i].node_longitude.toString() + " , "
+
+                if (modelledGraphPath.first[i].node_description == "EV") {
+                    addAnnotationToMap(
+                        modelledGraphPath.first[i].node_longitude,
+                        modelledGraphPath.first[i].node_latitude
+                    )
+                }
+            }
+
+            sv.visibility = View.VISIBLE
+            tv.text = c
+
+
+        }
+
+        startSimulation(routes.first())
+
+
+        /** show UI elements*/
+        findViewById<MapboxSoundButton>(R.id.soundButton).visibility = View.VISIBLE
+        findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).visibility = View.VISIBLE
+//        findViewById<CardView>(R.id.tripProgressCard).visibility = View.VISIBLE
+
+        /** move the camera to overview when new route is available */
+        navigationCamera.requestNavigationCameraToOverview()
+
+
+    }
+
+    private fun addAnnotationToMap(nodeLongitude: Double, nodeLatitude: Double) {
+
+        UiUtils().bitmapFromDrawableRes(
+            this,
+            R.drawable.ic_baseline_location_on_24
+        )?.let {
+            val annotationApi = mapView.annotations
+            val pointAnnotationManager = annotationApi.createPointAnnotationManager()
+
+            val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
+                .withPoint(Point.fromLngLat(nodeLongitude, nodeLatitude))
+                .withIconImage(it)
+            pointAnnotationManager.create(pointAnnotationOptions)
+        }
     }
 
     override fun onStart() {
@@ -543,10 +857,7 @@ class NavigationActivity : AppCompatActivity() {
         mapboxNavigation.registerVoiceInstructionsObserver(voiceInstructionsObserver)
         mapboxNavigation.registerRouteProgressObserver(replayProgressObserver)
 
-        if (mapboxNavigation.getRoutes().isEmpty()) {
-// if simulation is enabled (ReplayLocationEngine set to NavigationOptions)
-// but we're not simulating yet,
-// push a single location sample to establish origin
+        if (mapboxNavigation.getNavigationRoutes().toDirectionsRoutes().isEmpty()) {
             mapboxReplayer.pushEvents(
                 listOf(
                     ReplayRouteMapper.mapToUpdateLocation(
@@ -581,195 +892,18 @@ class NavigationActivity : AppCompatActivity() {
         voiceInstructionsPlayer.shutdown()
     }
 
-    private fun findRoute(destinationPoint: Point) {
-        val originLocation = navigationLocationProvider.lastLocation
-        val originPoint = originLocation?.let {
-            Point.fromLngLat(it.longitude, it.latitude)
-        } ?: return
-
-        /**
-        val coordinatePoints =
-        originPoint.longitude().toString() + "," + originPoint.latitude()
-        .toString() + ";" + destinationPoint.longitude()
-        .toString() + "," + destinationPoint.latitude().toString()
-
-
-        viewModel.getDirections(points = coordinatePoints).observe(this, Observer { mResponse ->
-
-        if (viewModel.successfulDirections.value != null) {
-
-        if (viewModel.successfulDirections.value == true) {
-
-        UiUtils().hideProgress(
-        view = findViewById<ConstraintLayout>(R.id.csl_navigation),
-        pb,
-        this
-        )
-
-        initViews(mResponse)
-
-        } else {
-        UiUtils().hideProgress(
-        view = findViewById<ConstraintLayout>(R.id.csl_navigation),
-        pb,
-        this
-        )
-
-        UiUtils().showSnackbar(
-        view = findViewById<ConstraintLayout>(R.id.csl_navigation),
-        message = viewModel.messageDirections.value.toString()
-        )
-        }
-
-        } else {
-        UiUtils().showProgress(
-        view = findViewById<ConstraintLayout>(R.id.csl_navigation),
-        pb,
-        this
-        )
-        }
-
-        })
-
-         */
-        /** execute a route request
-        it's recommended to use the
-        applyDefaultNavigationOptions and applyLanguageAndVoiceUnitOptions
-        that make sure the route request is optimized
-        to allow for support of all of the Navigation SDK features */
-
-        mapboxNavigation.requestRoutes(
-            RouteOptions.builder()
-                .applyDefaultNavigationOptions()
-                .applyLanguageAndVoiceUnitOptions(this)
-                .coordinatesList(listOf(originPoint, destinationPoint))
-                /** provide the bearing for the origin of the request to ensure
-                that the returned route faces in the direction of the current user movement*/
-                .bearingsList(
-                    listOf(
-                        Bearing.builder()
-                            .angle(originLocation.bearing.toDouble())
-                            .degrees(45.0)
-                            .build(),
-                        null
-                    )
-                )
-                .layersList(listOf(mapboxNavigation.getZLevel(), null))
-                .build(),
-            object : RouterCallback {
-                override fun onRoutesReady(
-                    routes: List<DirectionsRoute>,
-                    routerOrigin: RouterOrigin
-                ) {
-                    setRouteAndStartNavigation(routes, originPoint, destinationPoint)
-
-                }
-
-                override fun onFailure(
-                    reasons: List<RouterFailure>,
-                    routeOptions: RouteOptions
-                ) {
-                }
-
-                override fun onCanceled(routeOptions: RouteOptions, routerOrigin: RouterOrigin) {
-                }
-            }
-        )
-
-
-    }
-
-    private fun initViews(mResponse: DirectionRouteResponse?) {
-
-
-    }
-
-    private fun setRouteAndStartNavigation(
-        routes: List<DirectionsRoute>,
-        sourcePoint: Point,
-        destinationPoint: Point
-    ) {
-        /** set routes, where the first route in the list is the primary route that
-        will be used for active guidance*/
-
-
-        mapboxNavigation.setRoutes(routes)
-        val src = RouteGraphUtil.convertTerminalsToNode(sourcePoint, "SOURCE")
-        val dst = RouteGraphUtil.convertTerminalsToNode(destinationPoint, "DESTINATION")
-
-        val routeGraph = RouteGraphUtil.getRouteGraphInstance(routes, src, dst)
-
-        if (routeGraph != null) {
-
-
-            var c = ""
-
-            //Model the graph
-
-            val graphPath =
-                RouteModelling.modelGraph(routeGraph, src, dst, 1000.0)
-            val modelledGraphPath = graphPath.first
-            val modelledGraphLogs = graphPath.second
-
-//            addPathMarkers(modelledGraphPath.first)
-
-
-            c += "\nSOURCE:  ${src.node_longitude},${src.node_latitude},${src.node_description},${src.node_weight},${src.node_time},${src.node_height}"
-            c += "\nDST: ${dst.node_longitude},${dst.node_latitude},${dst.node_description},${dst.node_weight},${dst.node_time},${dst.node_height}"
-
-            //Add the graph details
-            c += "\nGraphNodes: size = ${routeGraph.graph_nodes.size}:"
-            for (j in 0 until routeGraph.graph_nodes.size) {
-            val i = routeGraph.graph_nodes[j]
-            c += "\n ${i.node_longitude},${i.node_latitude},${i.node_description},${i.node_weight},${i.node_time},${i.node_height}"
-            }
-
-            c += "\nGraphEdges: size = ${routeGraph.graph_edges.size}:"
-            for (j in 0 until routeGraph.graph_edges.size) {
-            val i = routeGraph.graph_edges[j]!!
-            c += "\n" + i.edge_start_node.node_longitude.toString() + "," + i.edge_end_node.node_longitude.toString() + ": " + i.edge_weight.toString()
-            }
-
-
-            c += modelledGraphLogs
-            c += "\nModelled distance =  ${modelledGraphPath.second} with path : \n"
-
-            for (i in 0 until modelledGraphPath.first.size) {
-            c += modelledGraphPath.first[i].node_longitude.toString() + " , "
-            }
-
-
-            mapView.visibility = View.GONE
-            sv.visibility = View.VISIBLE
-            tv.text = c
-
-        }
-
-        /** start location simulation along the primary route*/
-        startSimulation(routes.first())
-
-        /** show UI elements*/
-        findViewById<MapboxSoundButton>(R.id.soundButton).visibility = View.VISIBLE
-        findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).visibility = View.VISIBLE
-        findViewById<CardView>(R.id.tripProgressCard).visibility = View.VISIBLE
-
-        /** move the camera to overview when new route is available */
-        navigationCamera.requestNavigationCameraToOverview()
-    }
-
-
     private fun clearRouteAndStopNavigation() {
         /** clear*/
-        mapboxNavigation.setRoutes(listOf())
+        mapboxNavigation.setNavigationRoutes(listOf<DirectionsRoute>().toNavigationRoutes())
 
         /** stop simulation*/
         mapboxReplayer.stop()
 
         /** hide UI elements*/
-        findViewById<MapboxSoundButton>(R.id.soundButton).visibility = View.INVISIBLE
-        findViewById<MapboxManeuverView>(R.id.maneuverView).visibility = View.INVISIBLE
-        findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).visibility = View.INVISIBLE
-        findViewById<CardView>(R.id.tripProgressCard).visibility = View.INVISIBLE
+//        findViewById<MapboxSoundButton>(R.id.soundButton).visibility = View.INVISIBLE
+//        findViewById<MapboxManeuverView>(R.id.maneuverView).visibility = View.INVISIBLE
+//        findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).visibility = View.INVISIBLE
+//        findViewById<CardView>(R.id.tripProgressCard).visibility = View.INVISIBLE
     }
 
     private fun startSimulation(route: DirectionsRoute) {
@@ -783,61 +917,30 @@ class NavigationActivity : AppCompatActivity() {
         }
     }
 
+    override fun onLowMemory() {
+        super.onLowMemory()
+        mapView.onLowMemory()
+    }
 
-    private fun addPathMarkers(r: List<RouteGraph.RouteGraphNode>) {
+    private companion object {
 
-        for (i in r.indices) {
+        private const val PERMISSIONS_REQUEST_LOCATION = 0
 
-            addAnnotationToMap(r[i].node_longitude, r[i].node_latitude)
-
+        fun Context.isPermissionGranted(permission: String): Boolean {
+            return ContextCompat.checkSelfPermission(
+                this, permission
+            ) == PackageManager.PERMISSION_GRANTED
         }
     }
 
-    private fun addAnnotationToMap(lo: Double, lt: Double) {
-
-        // Create an instance of the Annotation API and get the PointAnnotationManager.
-        bitmapFromDrawableRes(
-            this,
-            R.drawable.ic_baseline_location_on_24
-        )?.let {
-            val annotationApi = mapView.annotations
-            val pointAnnotationManager = annotationApi.createPointAnnotationManager(mapView)
-            // Set options for the resulting symbol layer.
-            val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
-                // Define a geographic coordinate.
-                .withPoint(Point.fromLngLat(lo, lt))
-                // Specify the bitmap you assigned to the point annotation
-                // The bitmap will be added to map style automatically.
-                .withIconImage(it)
-            // Add the resulting pointAnnotation to the map.
-            pointAnnotationManager.create(pointAnnotationOptions)
-        }
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        locationPermissionHelper.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
-    private fun bitmapFromDrawableRes(context: Context, @DrawableRes resourceId: Int) =
-        convertDrawableToBitmap(
-            AppCompatResources
-                .getDrawable(context, resourceId)
-        )
 
-    private fun convertDrawableToBitmap(sourceDrawable: Drawable?): Bitmap? {
-        if (sourceDrawable == null) {
-            return null
-        }
-        return if (sourceDrawable is BitmapDrawable) {
-            sourceDrawable.bitmap
-        } else {
-            // copying drawable object to not manipulate on the same reference
-            val constantState = sourceDrawable.constantState ?: return null
-            val drawable = constantState.newDrawable().mutate()
-            val bitmap: Bitmap = Bitmap.createBitmap(
-                drawable.intrinsicWidth, drawable.intrinsicHeight,
-                Bitmap.Config.ARGB_8888
-            )
-            val canvas = Canvas(bitmap)
-            drawable.setBounds(0, 0, canvas.width, canvas.height)
-            drawable.draw(canvas)
-            bitmap
-        }
-    }
 }

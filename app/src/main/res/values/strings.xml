@@ -16,6 +16,7 @@
     <!--    API and Interfaces-->
     <string name="mapbox_access_token">pk.eyJ1Ijoia2F2eWEtMjQiLCJhIjoiY2w2Y2xhc2JpMW80MjNrcDNuZ3hwdDVxNSJ9.yRixm6cK2FVMVYiBk8AbDw</string>
     <string name="mapbox_directions_route">directions/v5/mapbox/%s/%s?geometries=%s&amp;access_token=%s</string>
+    <string name="mapbox_isochrone_polygon">isochrone/v1/%s/%s?contours_meters=%s&amp;contours_colors=%s&amp;polygons=%s&amp;access_token=%s</string>
 
 
     <!--#Errors-->
@@ -23,6 +24,16 @@
     <string name="error_request_timed_out">Request timed out</string>
     <string name="error_something_went_wrong">Something went wrong</string>
     <string name="direction_null">Directions not found</string>
+    <string name="title_activity_tile_query">TileQueryActivity</string>
+    <!-- Strings used for fragments for navigation -->
+    <string name="first_fragment_label">First Fragment</string>
+    <string name="second_fragment_label">Second Fragment</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+
+    <string name="hello_first_fragment">Hello first fragment</string>
+    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
+    <string name="isochrone_null">No surroundings found</string>
 
 
 </resources>
