@@ -2,6 +2,7 @@ package com.example.ecoroute.interfaces
 
 import androidx.annotation.Keep
 import com.example.ecoroute.models.responses.DirectionRouteResponse
+import com.example.ecoroute.models.responses.GeoCodedQueryResponse
 import com.example.ecoroute.models.responses.IsochronePolygonResponse
 import retrofit2.Call
 import retrofit2.http.GET
@@ -23,6 +24,12 @@ interface navigationInterface {
     fun getIsochronePolygon(
         @Url mapbox_url: String
     ): Call<IsochronePolygonResponse>
+
+    @Headers("Content-Type:application/json")
+    @GET()
+    fun getGeocodedQuery(
+        @Url mapbox_url: String
+    ): Call<GeoCodedQueryResponse>
 
 
 

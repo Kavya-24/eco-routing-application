@@ -18,21 +18,23 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Observer
 import com.example.ecoroute.R
-import com.example.ecoroute.models.responses.IsochronePolygonResponse
+import com.example.ecoroute.models.DLSState
+import com.example.ecoroute.models.responses.GeoCodedQueryResponse
 import com.example.ecoroute.utils.LocationPermissionHelper
-import com.example.ecoroute.utils.MapConstants
+import com.example.ecoroute.utils.MapUtils
 import com.example.ecoroute.utils.UiUtils
 import com.example.ecoroute.utils.routeutils.RouteGraphUtil
 import com.example.ecoroute.utils.routeutils.RouteModelling
 import com.mapbox.api.directions.v5.models.Bearing
 import com.mapbox.api.directions.v5.models.DirectionsRoute
 import com.mapbox.api.directions.v5.models.RouteOptions
-import com.mapbox.api.isochrone.IsochroneCriteria
-import com.mapbox.api.isochrone.MapboxIsochrone
 import com.mapbox.bindgen.Expected
+import com.mapbox.geojson.Feature
 import com.mapbox.geojson.FeatureCollection
 import com.mapbox.geojson.Point
+import com.mapbox.geojson.Polygon
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
 import com.mapbox.maps.MapboxMap
@@ -41,7 +43,6 @@ import com.mapbox.maps.extension.style.expressions.generated.Expression.Companio
 import com.mapbox.maps.extension.style.expressions.generated.Expression.Companion.eq
 import com.mapbox.maps.extension.style.expressions.generated.Expression.Companion.geometryType
 import com.mapbox.maps.extension.style.expressions.generated.Expression.Companion.get
-import com.mapbox.maps.extension.style.expressions.generated.Expression.Companion.interpolate
 import com.mapbox.maps.extension.style.expressions.generated.Expression.Companion.literal
 import com.mapbox.maps.extension.style.layers.addLayer
 import com.mapbox.maps.extension.style.layers.addLayerBelow
@@ -108,9 +109,8 @@ import com.mapbox.navigation.ui.voice.model.SpeechError
 import com.mapbox.navigation.ui.voice.model.SpeechValue
 import com.mapbox.navigation.ui.voice.model.SpeechVolume
 import com.mapbox.navigation.ui.voice.view.MapboxSoundButton
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
+import com.mapbox.turf.TurfJoins
+import com.mapbox.turf.TurfMeasurement
 import java.lang.ref.WeakReference
 import java.util.*
 
@@ -119,6 +119,13 @@ class NavigationActivity : AppCompatActivity() {
 
 
     private val viewmodel: NavigationViewModel by viewModels()
+    private var times = 0
+    private var currentPoint: Point? = null
+    private var currentFeatures: List<Feature>? = null
+    private var currentState: DLSState = DLSState(currentPoint, currentFeatures)
+    private var isochroneStateList = mutableListOf<DLSState>()
+    private var isochroneCenters = mutableListOf<Point?>()
+
     private lateinit var pb: ProgressBar
     private lateinit var csl_view: ConstraintLayout
 
@@ -129,7 +136,7 @@ class NavigationActivity : AppCompatActivity() {
     private val MAP_CLICK_SOURCE_ID = "MAP_CLICK_SOURCE_ID"
     private val MAP_CLICK_MARKER_ICON_ID = "MAP_CLICK_MARKER_ICON_ID"
     private val MAP_CLICK_MARKER_LAYER_ID = "MAP_CLICK_MARKER_LAYER_ID"
-    private var usePolygon = false
+    private var usePolygon = true
 
     private val mapboxReplayer = MapboxReplayer()
     private val replayLocationEngine = ReplayLocationEngine(mapboxReplayer)
@@ -329,30 +336,6 @@ class NavigationActivity : AppCompatActivity() {
     private fun onMapReady() {
 
 
-//        // load map style
-//        mapboxMap.loadStyleUri(
-//            Style.MAPBOX_STREETS
-//        ) { it ->
-//
-//
-//
-//            initFillLayer(it)
-//            initLineLayer(it)
-//            //This is on style loaded
-//            mapView.gestures.addOnMapLongClickListener { point ->
-//                findRoute(point)
-//                true
-//            }
-//
-//            mapView.gestures.addOnMapClickListener { point ->
-//                createIsochronePolygons(point, style = it)
-//                true
-//            }
-//
-//
-//        }
-
-
         mapboxMap.loadStyle(
             style(styleUri = Style.MAPBOX_STREETS) {
 
@@ -381,15 +364,25 @@ class NavigationActivity : AppCompatActivity() {
                     initLineLayer(style)
                     initFillLayer(style)
 
+                    val originLocation = navigationLocationProvider.lastLocation
+                    val originPoint = originLocation?.let {
+                        Point.fromLngLat(it.longitude, it.latitude)
+                    } ?: return
+
+
+
+                    mapView.gestures.addOnMapClickListener {
+                        clearObservers()
+                        initiateDestiationPath(originPoint, it, style)
+
+                        true
+                    }
+
                     mapView.gestures.addOnMapLongClickListener {
                         findRoute(it)
                         true
                     }
 
-                    mapView.gestures.addOnMapClickListener {
-                        createIsochronePolygons(it, style)
-                        true
-                    }
                 }
             }
 
@@ -450,11 +443,11 @@ class NavigationActivity : AppCompatActivity() {
         }
 
         if (this.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            viewportDataSource.overviewPadding = MapConstants.landscapeOverviewPadding
-            viewportDataSource.followingPadding = MapConstants.landscapeFollowingPadding
+            viewportDataSource.overviewPadding = MapUtils.landscapeOverviewPadding
+            viewportDataSource.followingPadding = MapUtils.landscapeFollowingPadding
         } else {
-            viewportDataSource.overviewPadding = MapConstants.overviewPadding
-            viewportDataSource.followingPadding = MapConstants.followingPadding
+            viewportDataSource.overviewPadding = MapUtils.overviewPadding
+            viewportDataSource.followingPadding = MapUtils.followingPadding
         }
 
         // make sure to use the same DistanceFormatterOptions across different features
@@ -550,99 +543,206 @@ class NavigationActivity : AppCompatActivity() {
         mapboxNavigation.startTripSession()
     }
 
-    private fun createIsochronePolygons(originPoint: Point, style: Style) {
+    private fun initiateDestiationPath(
+        originPoint: Point,
+        destinationPoint: Point,
+        style: Style
+    ) {
 
-        Toast.makeText(this, originPoint.toJson().toString(), Toast.LENGTH_LONG).show()
+        currentPoint = originPoint
+        callForIsochrone(destinationPoint, style)
+    }
 
-        val mapboxIsochroneRequest = MapboxIsochrone.builder()
-            .accessToken(getString(com.example.ecoroute.R.string.mapbox_access_token))
-            .profile(IsochroneCriteria.PROFILE_DRIVING)
-            .addContoursMinutes(60)
-            .polygons(usePolygon)
-            .addContoursColors("4286f4")
-            .generalize(2f)
-            .denoise(.4f)
-            .coordinates(
-                Point.fromLngLat(
-                    originPoint.longitude(),
-                    originPoint.latitude()
-                )
+
+    private fun callForIsochrone(destinationPoint: Point, style: Style) {
+
+        if (currentPoint != null) {
+
+            Log.e(
+                "Navigation",
+                "Called for Isochrone with currentPoint = ${currentPoint.toString()}"
             )
-            .build()
+            clearObservers()
+            viewmodel.mapboxIsochrone(
+                currentPoint!!,
+                usePolygon,
+                resources.getString(R.string.mapbox_access_token)
+            ).observe(this, Observer { mReponse ->
 
-        mapboxIsochroneRequest.enqueueCall(object : Callback<FeatureCollection?> {
+                if (viewmodel.isochroneMapboxFeature.value != null) {
+                    UiUtils().hideProgress(csl_view, pb, this)
+                    currentState = DLSState(currentPoint, mReponse)
+                    currentFeatures = mReponse
+                    isochroneStateList.add(currentState)
+                    isochroneCenters.add(currentPoint)
 
-            override fun onResponse(
-                call: Call<FeatureCollection?>?,
-                response: Response<FeatureCollection?>
-            ) {
 
-                Log.e("Navigation", "In response")
-                if (response.body() != null && response.body()!!.features() != null) {
-                    Log.e("Navigation", "Response body not null value = \n ${response.body()}")
-                    val source =
-                        style.getSourceAs<GeoJsonSource>(ISOCHRONE_RESPONSE_GEOJSON_SOURCE_ID)
-
-                    if (source != null && response.body()!!.features()!!.size > 0) {
-                        source.featureCollection(response.body()!!)
-                    }
-
-                    //Line Layer
-                    if (!usePolygon) {
-                        mapboxMap.getStyle { style ->
-                            var timeLabelSymbolLayer: SymbolLayer
-
-                            // Check to see whether the LineLayer for time labels has already been created
-                            if (style.getLayerAs<SymbolLayer>(TIME_LABEL_LAYER_ID) == null) {
-                                timeLabelSymbolLayer = SymbolLayer(
-                                    TIME_LABEL_LAYER_ID,
-                                    ISOCHRONE_RESPONSE_GEOJSON_SOURCE_ID
-                                )
-                                timeLabelSymbolLayer = styleLineLayer(timeLabelSymbolLayer)
-                                style.addLayer(timeLabelSymbolLayer)
-
-                            } else {
-                                styleLineLayer(style.getLayerAs<SymbolLayer>(TIME_LABEL_LAYER_ID)!!)
-                            }
-                        }
-                    }
-
-                    val currentZoom = mapboxMap.cameraState.zoom
-
-                    if (currentZoom > 14) {
-
-                        mapboxMap.setCamera(
-                            CameraOptions.Builder()
-                                .zoom(currentZoom - 4.5)
-                                .build()
+                    if (currentFeatures != null) {
+                        makeContour(
+                            style = style,
+                            FeatureCollection.fromFeature(currentFeatures!!.get(0))
                         )
-
+                        checkForDestination(destinationPoint, style)
                     }
-
 
                 }
-            }
 
-            override fun onFailure(call: Call<FeatureCollection?>?, throwable: Throwable) {
-                UiUtils().showSnackbar(
-                    csl_view,
-                    UiUtils().returnStateMessageForThrowable(throwable)
-                )
-                UiUtils().logThrowables("Navigation", throwable)
-            }
-        })
 
+            })
+
+
+        } else {
+
+            Log.e(
+                "Navigation",
+                "Called for Isochrone with currentPoint = NULL"
+            )
+            UiUtils().showSnackbar(csl_view, "Can not reach destination")
+        }
 
     }
 
-    private fun initViews(mResponse: IsochronePolygonResponse?) {
+    private fun checkForDestination(destinationPoint: Point, style: Style) {
 
-        if (mResponse != null) {
+        if (evaluateDestination(destinationPoint, currentFeatures!!)) {
+            Log.e(
+                "Navigation",
+                "Destination found in isochrone with center ${currentPoint}"
+            )
+            UiUtils().showSnackbar(csl_view, "Destination reached")
 
-            Toast.makeText(this, mResponse.toString(), Toast.LENGTH_LONG).show()
+        } else {
+
+            callForGeocode(destinationPoint, style)
+
+        }
+        return
+    }
+
+    private fun callForGeocode(destinationPoint: Point, style: Style) {
+
+        clearObservers()
+        viewmodel.getGeocodeQuery(geocodeURLBuilder(currentPoint!!, currentFeatures!!))
+            .observe(this, Observer { mReponse ->
+
+                if (viewmodel.geocodeQueryResponse.value != null) {
+                    currentPoint = findAdmissiblePoint(mReponse, destinationPoint)
+                    callForIsochrone(destinationPoint, style)
+                }
+
+
+            })
+
+    }
+
+    private fun findAdmissiblePoint(
+        mReponse: GeoCodedQueryResponse?,
+        destinationPoint: Point
+    ): Point? {
+        if (mReponse != null) {
+
+
+            var admissiblePoint: Point? = null
+            var _distanceToDestination = Double.MAX_VALUE       //In km
+
+
+
+            for (e in 0 until mReponse.features.size) {
+
+                val p = Point.fromLngLat(
+                    mReponse.features[e].center[0],
+                    mReponse.features[e].center[1]
+                )
+
+
+                val _pointToDestination = eucledianDistance(p, destinationPoint)
+
+                if (isochroneCenters.contains(p)) {
+                    continue
+                }
+                Log.e(
+                    "Navigation",
+                    "Point $e  = ${p.toJson()} and distance = $_pointToDestination"
+                )
+
+                if (_pointToDestination < _distanceToDestination) {
+                    _distanceToDestination = _pointToDestination
+                    admissiblePoint = p
+                }
+            }
+
+            return admissiblePoint
+
+        }
+        return null
+    }
+
+
+    private fun geocodeURLBuilder(
+        originPoint: Point,
+        featureList: List<Feature>
+    ): String {
+        return resources.getString(
+            R.string.mapbox_geocode_query,
+            "mapbox.places",
+            resources.getString(R.string.ev_geocode_query),
+            MapUtils.returnMapboxAcceptedLngLat(originPoint),
+            MapUtils.generateBBOXFromFeatures(featureList),
+            resources.getString(R.string.mapbox_access_token)
+        )
+    }
+
+
+    private fun eucledianDistance(p1: Point, p2: Point): Double {
+        return TurfMeasurement.distance(p1, p2)
+    }
+
+    private fun evaluateDestination(destinationPoint: Point, features: List<Feature>): Boolean {
+        return TurfJoins.inside(destinationPoint, features[0].geometry() as Polygon)
+    }
+
+    private fun makeContour(style: Style, body: FeatureCollection) {
+
+        val source =
+            style.getSourceAs<GeoJsonSource>(ISOCHRONE_RESPONSE_GEOJSON_SOURCE_ID)
+
+        if (source != null && body.features()!!.size > 0) {
+            source.featureCollection(body)
+
 
         }
 
+        //Line Layer
+        if (!usePolygon) {
+            mapboxMap.getStyle { style ->
+                var timeLabelSymbolLayer: SymbolLayer
+
+                // Check to see whether the LineLayer for time labels has already been created
+                if (style.getLayerAs<SymbolLayer>(TIME_LABEL_LAYER_ID) == null) {
+                    timeLabelSymbolLayer = SymbolLayer(
+                        TIME_LABEL_LAYER_ID,
+                        ISOCHRONE_RESPONSE_GEOJSON_SOURCE_ID
+                    )
+                    timeLabelSymbolLayer = styleLineLayer(timeLabelSymbolLayer)
+                    style.addLayer(timeLabelSymbolLayer)
+
+                } else {
+                    styleLineLayer(style.getLayerAs<SymbolLayer>(TIME_LABEL_LAYER_ID)!!)
+                }
+            }
+        }
+
+        val currentZoom = mapboxMap.cameraState.zoom
+
+        if (currentZoom > 14) {
+
+            mapboxMap.setCamera(
+                CameraOptions.Builder()
+                    .zoom(currentZoom - 5)
+                    .build()
+            )
+
+        }
 
     }
 
@@ -873,6 +973,8 @@ class NavigationActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
 
+        //Clear viewmodel observers
+        clearObservers()
         // unregister event listeners to prevent leaks or unnecessary resource consumption
         mapboxNavigation.unregisterRoutesObserver(routesObserver)
         mapboxNavigation.unregisterRouteProgressObserver(routeProgressObserver)
@@ -883,6 +985,7 @@ class NavigationActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        clearObservers()
         MapboxNavigationProvider.destroy()
         mapboxReplayer.finish()
         maneuverApi.cancel()
@@ -942,5 +1045,33 @@ class NavigationActivity : AppCompatActivity() {
         locationPermissionHelper.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
+    private fun clearObservers() {
+        viewmodel.successfulGeocode.removeObservers(this)
+        viewmodel.successfulGeocode.value = null
+        viewmodel.successfulMapboxIsochrone.removeObservers(this)
+        viewmodel.successfulMapboxIsochrone.value = null
+        viewmodel.successfulIsochrone.removeObservers(this)
+        viewmodel.successfulIsochrone.value = null
+
+        viewmodel.messageGeocode.removeObservers(this)
+        viewmodel.messageGeocode.value = null
+        viewmodel.messageMapboxIsochrone.removeObservers(this)
+        viewmodel.messageMapboxIsochrone.value = null
+        viewmodel.messageIsochrone.removeObservers(this)
+        viewmodel.messageIsochrone.value = null
+
+        viewmodel.isochroneMapboxFeature.removeObservers(this)
+        viewmodel.isochroneMapboxFeature.value = null
+        viewmodel.isochronePolygonResponse.removeObservers(this)
+        viewmodel.isochronePolygonResponse.value = null
+        viewmodel.geocodeQueryResponse.removeObservers(this)
+        viewmodel.geocodeQueryResponse.value = null
+    }
+
+    override fun onBackPressed() {
+        super.onBackPressed()
+        clearObservers()
+        finish()
+    }
 
 }

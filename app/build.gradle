@@ -70,6 +70,8 @@ dependencies {
     implementation "com.mapbox.navigation:ui-dropin:2.6.0"
     implementation "com.mapbox.navigation:android:2.6.0"
 
+    //Turf
+    implementation 'com.mapbox.mapboxsdk:mapbox-sdk-turf:6.4.0'
 
     //RecyclerView
     implementation "androidx.recyclerview:recyclerview-selection:1.1.0-rc03"

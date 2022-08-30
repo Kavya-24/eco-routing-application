@@ -2,4 +2,5 @@
 <resources>
     <string name="direction_null">Directions not found</string>
     <string name="isochrone_null">No surroundings found</string>
+    <string name="geocode_query_null">No queired features of interest found</string>
 </resources>
