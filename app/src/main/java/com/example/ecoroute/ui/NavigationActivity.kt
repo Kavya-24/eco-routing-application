@@ -9,12 +9,10 @@ import android.location.Location
 import android.os.Bundle
 import android.util.Log
 import android.view.View
-import android.widget.ProgressBar
-import android.widget.ScrollView
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -25,8 +23,6 @@ import com.example.ecoroute.models.responses.GeoCodedQueryResponse
 import com.example.ecoroute.utils.LocationPermissionHelper
 import com.example.ecoroute.utils.MapUtils
 import com.example.ecoroute.utils.UiUtils
-import com.example.ecoroute.utils.routeutils.RouteGraphUtil
-import com.example.ecoroute.utils.routeutils.RouteModelling
 import com.mapbox.api.directions.v5.models.Bearing
 import com.mapbox.api.directions.v5.models.DirectionsRoute
 import com.mapbox.api.directions.v5.models.RouteOptions
@@ -102,6 +98,7 @@ import com.mapbox.navigation.ui.maps.route.line.model.RouteLine
 import com.mapbox.navigation.ui.maps.route.line.model.toNavigationRouteLines
 import com.mapbox.navigation.ui.tripprogress.api.MapboxTripProgressApi
 import com.mapbox.navigation.ui.tripprogress.model.*
+import com.mapbox.navigation.ui.tripprogress.view.MapboxTripProgressView
 import com.mapbox.navigation.ui.voice.api.MapboxSpeechApi
 import com.mapbox.navigation.ui.voice.api.MapboxVoiceInstructionsPlayer
 import com.mapbox.navigation.ui.voice.model.SpeechAnnouncement
@@ -124,7 +121,8 @@ class NavigationActivity : AppCompatActivity() {
     private var currentFeatures: List<Feature>? = null
     private var currentState: DLSState = DLSState(currentPoint, currentFeatures)
     private var isochroneStateList = mutableListOf<DLSState>()
-    private var isochroneCenters = mutableListOf<Point?>()
+    private var isochroneCenters = mutableListOf<Point>()
+    private var contourFeatures = mutableListOf<FeatureCollection>()
 
     private lateinit var pb: ProgressBar
     private lateinit var csl_view: ConstraintLayout
@@ -261,9 +259,9 @@ class NavigationActivity : AppCompatActivity() {
             }
         )
 
-//        findViewById<MapboxTripProgressView>(R.id.tripProgressView).render(
-//            tripProgressApi.getTripProgress(routeProgress)
-//        )
+        findViewById<MapboxTripProgressView>(R.id.tripProgressView).render(
+            tripProgressApi.getTripProgress(routeProgress)
+        )
     }
 
     private val routesObserver = RoutesObserver { routeUpdateResult ->
@@ -337,7 +335,7 @@ class NavigationActivity : AppCompatActivity() {
 
 
         mapboxMap.loadStyle(
-            style(styleUri = Style.MAPBOX_STREETS) {
+            style(styleUri = Style.TRAFFIC_DAY) {
 
 
             }, object : Style.OnStyleLoaded {
@@ -368,7 +366,6 @@ class NavigationActivity : AppCompatActivity() {
                     val originPoint = originLocation?.let {
                         Point.fromLngLat(it.longitude, it.latitude)
                     } ?: return
-
 
 
                     mapView.gestures.addOnMapClickListener {
@@ -504,9 +501,9 @@ class NavigationActivity : AppCompatActivity() {
         routeArrowView = MapboxRouteArrowView(routeArrowOptions)
 
 
-//        findViewById<ImageView>(R.id.stop).setOnClickListener {
-//            clearRouteAndStopNavigation()
-//        }
+        findViewById<ImageView>(R.id.stop).setOnClickListener {
+            clearRouteAndStopNavigation()
+        }
         findViewById<MapboxRecenterButton>(R.id.recenter).setOnClickListener {
             navigationCamera.requestNavigationCameraToFollowing()
             findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).showTextAndExtend(
@@ -574,10 +571,11 @@ class NavigationActivity : AppCompatActivity() {
                     currentState = DLSState(currentPoint, mReponse)
                     currentFeatures = mReponse
                     isochroneStateList.add(currentState)
-                    isochroneCenters.add(currentPoint)
+                    isochroneCenters.add(currentPoint!!)
 
 
                     if (currentFeatures != null) {
+                        contourFeatures.add(FeatureCollection.fromFeature(currentFeatures!!.get(0)))
                         makeContour(
                             style = style,
                             FeatureCollection.fromFeature(currentFeatures!!.get(0))
@@ -610,6 +608,7 @@ class NavigationActivity : AppCompatActivity() {
                 "Destination found in isochrone with center ${currentPoint}"
             )
             UiUtils().showSnackbar(csl_view, "Destination reached")
+            findDirectionalRoute(destinationPoint)
 
         } else {
 
@@ -618,6 +617,7 @@ class NavigationActivity : AppCompatActivity() {
         }
         return
     }
+
 
     private fun callForGeocode(destinationPoint: Point, style: Style) {
 
@@ -852,6 +852,61 @@ class NavigationActivity : AppCompatActivity() {
 
     }
 
+    private fun findDirectionalRoute(destinationPoint: Point) {
+
+
+        if (isochroneCenters.isEmpty()) {
+            return findRoute(destinationPoint)
+        }
+
+
+        val originLocation = navigationLocationProvider.lastLocation
+        val originPoint = originLocation?.let {
+            Point.fromLngLat(it.longitude, it.latitude)
+        } ?: return
+
+        if (isochroneCenters.last() != destinationPoint) {
+            isochroneCenters.add(destinationPoint)
+        }
+
+        Log.e("Navigation", "Directional API on  ${isochroneCenters.toString()}")
+
+
+        mapboxNavigation.requestRoutes(
+            RouteOptions.builder()
+                .applyDefaultNavigationOptions()
+                .applyLanguageAndVoiceUnitOptions(this)
+                .coordinatesList(isochroneCenters.toList())
+                .bearingsList(
+                    MapUtils.getDirectionBearings(originLocation, isochroneCenters).toList()
+                )
+                .layersList(MapUtils.getDirectionLayers(isochroneCenters))
+                .build(),
+            object : RouterCallback {
+                override fun onRoutesReady(
+                    routes: List<DirectionsRoute>,
+                    routerOrigin: RouterOrigin
+                ) {
+                    setRouteAndStartNavigation(routes, originPoint, destinationPoint)
+
+                }
+
+                override fun onFailure(
+                    reasons: List<RouterFailure>,
+                    routeOptions: RouteOptions
+                ) {
+
+                    Log.e("Navigation", "Failed Direction API because ${reasons.toString()}")
+                    Toast.makeText(this@NavigationActivity, "Failed = $reasons", Toast.LENGTH_LONG).show()
+                }
+
+                override fun onCanceled(routeOptions: RouteOptions, routerOrigin: RouterOrigin) {
+                }
+            }
+        )
+
+    }
+
     private fun setRouteAndStartNavigation(
         routes: List<DirectionsRoute>,
         sourcePoint: Point,
@@ -861,69 +916,13 @@ class NavigationActivity : AppCompatActivity() {
 
         mapboxNavigation.setNavigationRoutes(routes.toNavigationRoutes())
 
-        val src = RouteGraphUtil.convertTerminalsToNode(sourcePoint, "SOURCE")
-        val dst = RouteGraphUtil.convertTerminalsToNode(destinationPoint, "DESTINATION")
-
-        val routeGraph = RouteGraphUtil.getRouteGraphInstance(routes, src, dst)
-
-
-        if (routeGraph != null) {
-
-
-            var c = ""
-
-            //Model the graph
-
-            val graphPath =
-                RouteModelling.modelGraph(routeGraph, src, dst, 1000.0)
-            val modelledGraphPath = graphPath.first
-            val modelledGraphLogs = graphPath.second
-
-
-            c += "\nSOURCE:  ${src.node_longitude},${src.node_latitude},${src.node_description},${src.node_weight},${src.node_time},${src.node_height}"
-            c += "\nDST: ${dst.node_longitude},${dst.node_latitude},${dst.node_description},${dst.node_weight},${dst.node_time},${dst.node_height}"
-
-            //Add the graph details
-            c += "\nGraphNodes: size = ${routeGraph.graph_nodes.size}:"
-            for (j in 0 until routeGraph.graph_nodes.size) {
-                val i = routeGraph.graph_nodes[j]
-                c += "\n ${i.node_longitude},${i.node_latitude},${i.node_description},${i.node_weight},${i.node_time},${i.node_height}"
-            }
-
-            c += "\nGraphEdges: size = ${routeGraph.graph_edges.size}:"
-            for (j in 0 until routeGraph.graph_edges.size) {
-                val i = routeGraph.graph_edges[j]!!
-                c += "\n" + i.edge_start_node.node_longitude.toString() + "," + i.edge_end_node.node_longitude.toString() + ": " + i.edge_weight.toString()
-            }
-
-
-            c += modelledGraphLogs
-            c += "\nModelled distance =  ${modelledGraphPath.second} with path : \n"
-
-            for (i in 0 until modelledGraphPath.first.size) {
-                c += modelledGraphPath.first[i].node_longitude.toString() + " , "
-
-                if (modelledGraphPath.first[i].node_description == "EV") {
-                    addAnnotationToMap(
-                        modelledGraphPath.first[i].node_longitude,
-                        modelledGraphPath.first[i].node_latitude
-                    )
-                }
-            }
-
-            sv.visibility = View.VISIBLE
-            tv.text = c
-
-
-        }
-
         startSimulation(routes.first())
 
 
         /** show UI elements*/
         findViewById<MapboxSoundButton>(R.id.soundButton).visibility = View.VISIBLE
         findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).visibility = View.VISIBLE
-//        findViewById<CardView>(R.id.tripProgressCard).visibility = View.VISIBLE
+        findViewById<CardView>(R.id.tripProgressCard).visibility = View.VISIBLE
 
         /** move the camera to overview when new route is available */
         navigationCamera.requestNavigationCameraToOverview()
@@ -1003,10 +1002,18 @@ class NavigationActivity : AppCompatActivity() {
         mapboxReplayer.stop()
 
         /** hide UI elements*/
-//        findViewById<MapboxSoundButton>(R.id.soundButton).visibility = View.INVISIBLE
-//        findViewById<MapboxManeuverView>(R.id.maneuverView).visibility = View.INVISIBLE
-//        findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).visibility = View.INVISIBLE
-//        findViewById<CardView>(R.id.tripProgressCard).visibility = View.INVISIBLE
+        findViewById<MapboxSoundButton>(R.id.soundButton).visibility = View.INVISIBLE
+        findViewById<MapboxManeuverView>(R.id.maneuverView).visibility = View.INVISIBLE
+        findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).visibility = View.INVISIBLE
+        findViewById<CardView>(R.id.tripProgressCard).visibility = View.INVISIBLE
+
+        currentPoint = null
+        currentFeatures = null
+        currentState = DLSState(currentPoint, currentFeatures)
+        isochroneStateList = mutableListOf<DLSState>()
+        isochroneCenters = mutableListOf<Point>()
+        contourFeatures = mutableListOf<FeatureCollection>()
+
     }
 
     private fun startSimulation(route: DirectionsRoute) {
@@ -1066,10 +1073,13 @@ class NavigationActivity : AppCompatActivity() {
         viewmodel.isochronePolygonResponse.value = null
         viewmodel.geocodeQueryResponse.removeObservers(this)
         viewmodel.geocodeQueryResponse.value = null
+
+
     }
 
     override fun onBackPressed() {
         super.onBackPressed()
+        clearRouteAndStopNavigation()
         clearObservers()
         finish()
     }

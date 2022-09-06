@@ -1,6 +1,8 @@
 package com.example.ecoroute.utils
 
 import android.content.res.Resources
+import android.location.Location
+import com.mapbox.api.directions.v5.models.Bearing
 import com.mapbox.geojson.Feature
 import com.mapbox.geojson.Point
 import com.mapbox.geojson.Polygon
@@ -70,6 +72,38 @@ object MapUtils {
         }
 
         return "$minLong,$minLat,$maxLong,$maxLat"
+    }
+
+
+    fun getDirectionBearings(
+        originLocation: Location,
+        isochroneCenters: MutableList<Point>
+    ): MutableList<Bearing?> {
+
+
+        val bearings = mutableListOf<Bearing?>()
+
+        for( e in 0 .. isochroneCenters.size-2){
+            bearings.add(
+                Bearing.builder()
+                    .angle(originLocation.bearing.toDouble())
+                    .degrees(45.0)
+                    .build()
+            )
+        }
+
+        bearings.add(null)
+
+        return bearings
+    }
+
+    fun getDirectionLayers(isochroneCenters: MutableList<Point>): MutableList<Int> {
+        val zLevels = mutableListOf<Int>()
+        isochroneCenters.forEach { it->
+            zLevels.add(it.altitude().toInt())
+        }
+
+        return zLevels
     }
 
 
