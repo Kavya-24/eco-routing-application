@@ -19,6 +19,7 @@
     <string name="mapbox_isochrone_polygon">isochrone/v1/%s/%s?contours_meters=%s&amp;contours_colors=%s&amp;polygons=%s&amp;access_token=%s</string>
     <string name="mapbox_geocode_query">geocoding/v5/%s/%s?proximity=%s&amp;bbox=%s&amp;access_token=%s</string>
     <string name="ev_geocode_query">coffee.json</string>
+    <string name="driving_profile">mapbox/driving</string>
 
     <!--#Errors-->
     <string name="error_please_check_internet">Please check your internet connection</string>

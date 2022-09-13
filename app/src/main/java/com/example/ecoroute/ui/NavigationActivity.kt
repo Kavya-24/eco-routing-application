@@ -355,9 +355,9 @@ class NavigationActivity : AppCompatActivity() {
         }
 
         fabNavigate.setOnClickListener {
-            if (MAP_READY) {
+            if (MAP_READY && mapboxMap.getStyle() != null) {
 
-                navigateWithCharge(mapStyle)
+                navigateWithCharge(mapboxMap.getStyle()!!)
 
             }
         }
@@ -540,7 +540,7 @@ class NavigationActivity : AppCompatActivity() {
 
 
                     mapView.gestures.addOnMapClickListener {
-                        clearObservers()
+
                         initiateDestiationPath(originPoint, it, style)
 
                         true
@@ -550,8 +550,8 @@ class NavigationActivity : AppCompatActivity() {
                         findRoute(it)
                         true
                     }
+                    MAP_READY = true
 
-                    mapStyle = style
 
                 }
             }
@@ -713,7 +713,6 @@ class NavigationActivity : AppCompatActivity() {
         mapboxNavigation.startTripSession()
 
 
-        MAP_READY = true
     }
 
     private fun initiateDestiationPath(
@@ -721,6 +720,8 @@ class NavigationActivity : AppCompatActivity() {
         destinationPoint: Point,
         style: Style
     ) {
+        clearObservers()
+
         val soc = if (initialSOC != null) {
             MapUtils.convertChargeToSOC(initialSOC!!)
         } else {
@@ -877,6 +878,17 @@ class NavigationActivity : AppCompatActivity() {
         )
     }
 
+    private fun isochroneURLBuilder(originPoint: Point, soc: Double): String {
+        return resources.getString(
+            R.string.mapbox_isochrone_polygon,
+            resources.getString(R.string.driving_profile),
+            MapUtils.returnMapboxAcceptedLngLat(originPoint),
+            soc.toInt().toString(),
+            "4286f4",
+            "true",
+            resources.getString(R.string.mapbox_access_token)
+        )
+    }
 
     private fun eucledianDistance(p1: Point, p2: Point): Double {
         return TurfMeasurement.distance(p1, p2)
