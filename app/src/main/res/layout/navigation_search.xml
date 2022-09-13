@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/sv_navigation_search"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/csl_navigation_search"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="@dimen/space">
+
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/navigation_frame_destination_location"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
+            android:padding="@dimen/space"
+            app:layout_constraintBottom_toTopOf="@id/navigation_tvCharging"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/navigation_til_query_ui_destination_location"
+                style="@style/ThemeOverlay.Material3.TextInputEditText.OutlinedBox.Dense"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/navigation_query_ui_destination_location"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:hint="@string/choose_dst_location" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.mapbox.search.ui.view.SearchResultsView
+                android:id="@+id/navigation_search_results_view"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_2x"
+                android:visibility="gone"
+                app:layout_constraintTop_toBottomOf="@id/navigation_til_query_ui_destination_location" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+        <TextView
+            android:id="@+id/navigation_tvCharging"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
+            android:padding="@dimen/space_half"
+            android:text="@string/charging"
+            android:textSize="16sp"
+            app:layout_constraintTop_toBottomOf="@id/navigation_frame_destination_location" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/navigation_sliderEvCharge"
+            style="@style/Myslider"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
+            android:contentDescription="@string/charge_slider_desc"
+            android:value="20"
+            android:valueFrom="0.0"
+            android:valueTo="100"
+            app:labelBehavior="withinBounds"
+            app:layout_constraintTop_toBottomOf="@id/navigation_tvCharging"
+            app:thumbColor="@color/colorGreen"
+            app:thumbStrokeColor="@color/colorGreenAlpha"
+            app:tickColor="@color/colorAccent"
+            app:trackColorActive="@color/colorGreen" />
+
+
+<!--        <com.google.android.material.button.MaterialButton-->
+<!--            android:id="@+id/navigation_mtbStartSearch"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:layout_marginTop="@dimen/space_3x"-->
+<!--            android:layout_marginBottom="@dimen/space_3x"-->
+<!--            android:text="@string/go"-->
+<!--            android:textColor="@color/colorWhite"-->
+<!--            android:textStyle="bold"-->
+<!--            app:backgroundTint="@color/colorAccent"-->
+<!--            app:icon="@drawable/ic_baseline_directions_24"-->
+<!--            app:iconGravity="textEnd"-->
+<!--            app:iconSize="@dimen/space_4x"-->
+<!--            app:layout_constraintEnd_toEndOf="parent"-->
+<!--            app:layout_constraintStart_toStartOf="parent"-->
+<!--            app:layout_constraintTop_toBottomOf="@id/navigation_sliderEvCharge" />-->
+
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>

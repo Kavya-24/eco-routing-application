@@ -11,6 +11,12 @@ import java.lang.Double.max
 import java.lang.Double.min
 
 object MapUtils {
+
+    val MAXIMUM_CHARGE = 60
+    fun convertChargeToSOC(initialSOC: Double): Int {
+        return (initialSOC * 0.6).toInt()
+    }
+
     private val pixelDensity = Resources.getSystem().displayMetrics.density
 
     val overviewPadding: EdgeInsets by lazy {
@@ -83,7 +89,7 @@ object MapUtils {
 
         val bearings = mutableListOf<Bearing?>()
 
-        for( e in 0 .. isochroneCenters.size-2){
+        for (e in 0..isochroneCenters.size - 2) {
             bearings.add(
                 Bearing.builder()
                     .angle(originLocation.bearing.toDouble())
@@ -99,7 +105,7 @@ object MapUtils {
 
     fun getDirectionLayers(isochroneCenters: MutableList<Point>): MutableList<Int> {
         val zLevels = mutableListOf<Int>()
-        isochroneCenters.forEach { it->
+        isochroneCenters.forEach { it ->
             zLevels.add(it.altitude().toInt())
         }
 

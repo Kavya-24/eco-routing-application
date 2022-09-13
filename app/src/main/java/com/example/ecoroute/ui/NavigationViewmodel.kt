@@ -123,21 +123,22 @@ class NavigationViewModel : ViewModel() {
     fun mapboxIsochrone(
         originPoint: Point,
         usePolygon: Boolean,
-        ACCESS_TOKEN: String
+        ACCESS_TOKEN: String,
+        SOC : Int
     ): MutableLiveData<List<Feature>> {
-        isochroneMapboxFeature = createIsochroneAroundPoint(originPoint, usePolygon, ACCESS_TOKEN)
+        isochroneMapboxFeature = createIsochroneAroundPoint(originPoint, usePolygon, ACCESS_TOKEN, SOC)
         return isochroneMapboxFeature
     }
 
     private fun createIsochroneAroundPoint(
-        originPoint: Point, usePolygon: Boolean, ACCESS_TOKEN: String
+        originPoint: Point, usePolygon: Boolean, ACCESS_TOKEN: String, SOC : Int
     ): MutableLiveData<List<Feature>> {
 
 
         val mapboxIsochroneRequest = MapboxIsochrone.builder()
             .accessToken(ACCESS_TOKEN)
             .profile(IsochroneCriteria.PROFILE_DRIVING)
-            .addContoursMinutes(60)
+            .addContoursMinutes(SOC)
             .polygons(usePolygon)
             .addContoursColors("4286f4")
             .generalize(2f)

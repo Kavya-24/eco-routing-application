@@ -1,12 +1,14 @@
 package com.example.ecoroute.ui
 
-
+import android.app.AlertDialog
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Color
 import android.location.Location
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.View
 import android.widget.*
@@ -22,7 +24,11 @@ import com.example.ecoroute.models.DLSState
 import com.example.ecoroute.models.responses.GeoCodedQueryResponse
 import com.example.ecoroute.utils.LocationPermissionHelper
 import com.example.ecoroute.utils.MapUtils
+import com.example.ecoroute.utils.MapUtils.MAXIMUM_CHARGE
 import com.example.ecoroute.utils.UiUtils
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.android.material.slider.Slider
+import com.google.android.material.textfield.TextInputEditText
 import com.mapbox.api.directions.v5.models.Bearing
 import com.mapbox.api.directions.v5.models.DirectionsRoute
 import com.mapbox.api.directions.v5.models.RouteOptions
@@ -106,6 +112,15 @@ import com.mapbox.navigation.ui.voice.model.SpeechError
 import com.mapbox.navigation.ui.voice.model.SpeechValue
 import com.mapbox.navigation.ui.voice.model.SpeechVolume
 import com.mapbox.navigation.ui.voice.view.MapboxSoundButton
+import com.mapbox.search.OfflineSearchEngineSettings
+import com.mapbox.search.ResponseInfo
+import com.mapbox.search.SearchEngineSettings
+import com.mapbox.search.record.HistoryRecord
+import com.mapbox.search.result.SearchResult
+import com.mapbox.search.result.SearchSuggestion
+import com.mapbox.search.ui.view.CommonSearchViewConfiguration
+import com.mapbox.search.ui.view.DistanceUnitType
+import com.mapbox.search.ui.view.SearchResultsView
 import com.mapbox.turf.TurfJoins
 import com.mapbox.turf.TurfMeasurement
 import java.lang.ref.WeakReference
@@ -114,6 +129,16 @@ import java.util.*
 
 class NavigationActivity : AppCompatActivity() {
 
+
+    private lateinit var mapStyle: Style
+    private lateinit var fabNavigate: FloatingActionButton
+    private lateinit var etDestination: TextInputEditText
+    private lateinit var searchResultView: SearchResultsView
+    private lateinit var chargingSlider: Slider
+    private var destinationSearchPoint: Point? = null
+    private var initialSOC: Double? = null
+
+    private var MAP_READY = false
 
     private val viewmodel: NavigationViewModel by viewModels()
     private var times = 0
@@ -322,13 +347,159 @@ class NavigationActivity : AppCompatActivity() {
         tv = findViewById(R.id.tv_details)
         pb = findViewById(R.id.pb_navigation)
         csl_view = findViewById(R.id.csl_navigation)
+        fabNavigate = findViewById(R.id.fab_navigate)
 
         locationPermissionHelper = LocationPermissionHelper(WeakReference(this))
         locationPermissionHelper.checkPermissions {
             onMapReady()
         }
 
+        fabNavigate.setOnClickListener {
+            if (MAP_READY) {
 
+                navigateWithCharge(mapStyle)
+
+            }
+        }
+    }
+
+    private fun navigateWithCharge(style: Style) {
+
+        //Create a dialog with source, destination and SOC
+        val originLocation = navigationLocationProvider.lastLocation
+        val originPoint = originLocation?.let {
+            Point.fromLngLat(it.longitude, it.latitude)
+        } ?: return
+
+        createDialog(originPoint, style)
+
+    }
+
+    private fun createDialog(originPoint: Point, style: Style) {
+        val d = AlertDialog.Builder(this)
+        val v = layoutInflater.inflate(R.layout.navigation_search, null)
+        d.setView(v)
+
+        etDestination = v.findViewById(R.id.navigation_query_ui_destination_location)
+        chargingSlider = v.findViewById(R.id.navigation_sliderEvCharge)
+        searchResultView = v.findViewById(R.id.navigation_search_results_view)
+
+        setUpSearchResultView(originPoint)
+        addSearchResultViewListeners(originPoint)
+        addQueryListeners(originPoint)
+
+
+        chargingSlider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
+            override fun onStartTrackingTouch(slider: Slider) {
+
+            }
+
+            override fun onStopTrackingTouch(slider: Slider) {
+                initialSOC = slider.value.toDouble()
+            }
+        })
+
+        d.setNegativeButton(resources.getString(R.string.go)) { _, _ ->
+            if (destinationSearchPoint != null) {
+                initiateDestiationPath(originPoint, destinationSearchPoint!!, style)
+
+            }
+        }
+
+        d.create()
+        d.show()
+    }
+
+
+    private fun addQueryListeners(originPoint: Point) {
+        etDestination.addTextChangedListener(object : TextWatcher {
+
+            override fun onTextChanged(s: CharSequence, start: Int, before: Int, after: Int) {
+                if (!s.toString().isEmpty()) {
+                    searchResultView.search(s.toString())
+                }
+
+
+            }
+
+            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
+                searchResultView.visibility = View.VISIBLE
+            }
+
+            override fun afterTextChanged(e: Editable) {
+
+
+            }
+        })
+    }
+
+    private fun addSearchResultViewListeners(originPoint: Point) {
+
+        searchResultView.addSearchListener(object : SearchResultsView.SearchListener {
+
+            private fun showToast(message: String) {
+                Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
+            }
+
+            override fun onHistoryItemClicked(historyRecord: HistoryRecord) {
+
+                etDestination.setText(historyRecord.name.toString(), TextView.BufferType.EDITABLE)
+                destinationSearchPoint = historyRecord.coordinate
+                searchResultView.visibility = View.GONE
+            }
+
+            override fun onSearchResult(searchResult: SearchResult, responseInfo: ResponseInfo) {
+                etDestination.setText(searchResult.name.toString(), TextView.BufferType.EDITABLE)
+                destinationSearchPoint = searchResult.coordinate
+
+                searchResultView.visibility = View.GONE
+            }
+
+            override fun onPopulateQueryClicked(
+                suggestion: SearchSuggestion,
+                responseInfo: ResponseInfo
+            ) {
+
+            }
+
+            override fun onCategoryResult(
+                suggestion: SearchSuggestion,
+                results: List<SearchResult>,
+                responseInfo: ResponseInfo
+            ) {
+            }
+
+            override fun onError(e: Exception) {
+            }
+
+            override fun onFeedbackClicked(responseInfo: ResponseInfo) {
+            }
+
+            override fun onOfflineSearchResults(
+                results: List<SearchResult>,
+                responseInfo: ResponseInfo
+            ) {
+            }
+
+            override fun onSuggestions(
+                suggestions: List<SearchSuggestion>,
+                responseInfo: ResponseInfo
+            ) {
+            }
+        })
+
+
+    }
+
+    private fun setUpSearchResultView(originPoint: Point) {
+        val accessToken = getString(R.string.mapbox_access_token)
+        searchResultView.initialize(
+            SearchResultsView.Configuration(
+                commonConfiguration = CommonSearchViewConfiguration(DistanceUnitType.IMPERIAL),
+                searchEngineSettings = SearchEngineSettings(accessToken),
+                offlineSearchEngineSettings = OfflineSearchEngineSettings(accessToken)
+            )
+        )
     }
 
     private fun onMapReady() {
@@ -379,6 +550,8 @@ class NavigationActivity : AppCompatActivity() {
                         findRoute(it)
                         true
                     }
+
+                    mapStyle = style
 
                 }
             }
@@ -538,6 +711,9 @@ class NavigationActivity : AppCompatActivity() {
 
 
         mapboxNavigation.startTripSession()
+
+
+        MAP_READY = true
     }
 
     private fun initiateDestiationPath(
@@ -545,13 +721,20 @@ class NavigationActivity : AppCompatActivity() {
         destinationPoint: Point,
         style: Style
     ) {
+        val soc = if (initialSOC != null) {
+            MapUtils.convertChargeToSOC(initialSOC!!)
+        } else {
+            MAXIMUM_CHARGE
+        }
 
         currentPoint = originPoint
-        callForIsochrone(destinationPoint, style)
+        callForIsochrone(
+            destinationPoint, style, soc
+        )
     }
 
 
-    private fun callForIsochrone(destinationPoint: Point, style: Style) {
+    private fun callForIsochrone(destinationPoint: Point, style: Style, SOC: Int) {
 
         if (currentPoint != null) {
 
@@ -559,11 +742,13 @@ class NavigationActivity : AppCompatActivity() {
                 "Navigation",
                 "Called for Isochrone with currentPoint = ${currentPoint.toString()}"
             )
+
             clearObservers()
             viewmodel.mapboxIsochrone(
                 currentPoint!!,
                 usePolygon,
-                resources.getString(R.string.mapbox_access_token)
+                resources.getString(R.string.mapbox_access_token),
+                SOC
             ).observe(this, Observer { mReponse ->
 
                 if (viewmodel.isochroneMapboxFeature.value != null) {
@@ -608,7 +793,7 @@ class NavigationActivity : AppCompatActivity() {
                 "Destination found in isochrone with center ${currentPoint}"
             )
             UiUtils().showSnackbar(csl_view, "Destination reached")
-            findDirectionalRoute(destinationPoint)
+//            findDirectionalRoute(destinationPoint)
 
         } else {
 
@@ -627,7 +812,7 @@ class NavigationActivity : AppCompatActivity() {
 
                 if (viewmodel.geocodeQueryResponse.value != null) {
                     currentPoint = findAdmissiblePoint(mReponse, destinationPoint)
-                    callForIsochrone(destinationPoint, style)
+                    callForIsochrone(destinationPoint, style, MAXIMUM_CHARGE)
                 }
 
 
@@ -897,7 +1082,8 @@ class NavigationActivity : AppCompatActivity() {
                 ) {
 
                     Log.e("Navigation", "Failed Direction API because ${reasons.toString()}")
-                    Toast.makeText(this@NavigationActivity, "Failed = $reasons", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@NavigationActivity, "Failed = $reasons", Toast.LENGTH_LONG)
+                        .show()
                 }
 
                 override fun onCanceled(routeOptions: RouteOptions, routerOrigin: RouterOrigin) {
@@ -980,6 +1166,10 @@ class NavigationActivity : AppCompatActivity() {
         mapboxNavigation.unregisterLocationObserver(locationObserver)
         mapboxNavigation.unregisterVoiceInstructionsObserver(voiceInstructionsObserver)
         mapboxNavigation.unregisterRouteProgressObserver(replayProgressObserver)
+
+        destinationSearchPoint = null
+        initialSOC = null
+
     }
 
     override fun onDestroy() {
@@ -992,6 +1182,7 @@ class NavigationActivity : AppCompatActivity() {
         routeLineView.cancel()
         speechApi.cancel()
         voiceInstructionsPlayer.shutdown()
+        MAP_READY = false
     }
 
     private fun clearRouteAndStopNavigation() {

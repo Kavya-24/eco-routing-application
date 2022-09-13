@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.ecoroute.R
 import com.example.ecoroute.utils.LocationPermissionHelper
+//import com.example.ecoroute.utils.LocationPermissionHelper
 import com.example.ecoroute.utils.UiUtils
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -44,7 +45,7 @@ import com.mapbox.search.result.SearchSuggestion
 import java.lang.ref.WeakReference
 
 
-class HomeFragment : Fragment(), OnMapClickListener {
+class HomeFragment : Fragment(), OnMapClickListener  {
 
 
     private val TAG = HomeFragment::class.java.simpleName
