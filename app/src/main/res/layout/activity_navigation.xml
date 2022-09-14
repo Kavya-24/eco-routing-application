@@ -44,7 +44,7 @@
         mapbox:layout_constraintTop_toTopOf="parent"
         mapbox:mapbox_cameraTargetLat="25.5357"
         mapbox:mapbox_cameraTargetLng="84.8512"
-        mapbox:mapbox_cameraZoom="12" />
+        mapbox:mapbox_cameraZoom="8" />
 
     <com.mapbox.navigation.ui.maneuver.view.MapboxManeuverView
         android:id="@+id/maneuverView"

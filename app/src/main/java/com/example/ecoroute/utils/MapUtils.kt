@@ -13,8 +13,14 @@ import java.lang.Double.min
 object MapUtils {
 
     val MAXIMUM_CHARGE = 60
+    val MAXIMUM_THRESHOLD = 10000
     fun convertChargeToSOC(initialSOC: Double): Int {
         return (initialSOC * 0.6).toInt()
+    }
+
+    fun getCenter(o1: Point, o2: Point): Point {
+
+        return Point.fromLngLat((o1.longitude() + o2.longitude())/2, (o1.latitude() + o2.latitude())/2)
     }
 
     private val pixelDensity = Resources.getSystem().displayMetrics.density

@@ -21,10 +21,12 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import com.example.ecoroute.R
 import com.example.ecoroute.models.DLSState
+import com.example.ecoroute.models.astar.Node
 import com.example.ecoroute.models.responses.GeoCodedQueryResponse
 import com.example.ecoroute.utils.LocationPermissionHelper
 import com.example.ecoroute.utils.MapUtils
 import com.example.ecoroute.utils.MapUtils.MAXIMUM_CHARGE
+import com.example.ecoroute.utils.MapUtils.MAXIMUM_THRESHOLD
 import com.example.ecoroute.utils.UiUtils
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.slider.Slider
@@ -125,10 +127,17 @@ import com.mapbox.turf.TurfJoins
 import com.mapbox.turf.TurfMeasurement
 import java.lang.ref.WeakReference
 import java.util.*
+import kotlin.properties.Delegates
 
 
 class NavigationActivity : AppCompatActivity() {
 
+    private val compareByHeuristic: Comparator<Node> = compareBy { it.g_n + it.h_n }
+    private val priorityQueue = PriorityQueue<Node>(compareByHeuristic)
+    private val nodeMap = mutableListOf<Node>()
+    private val ASTAR = "ASTAR"
+    private var radius by Delegates.notNull<Double>()
+    private lateinit var center: Point
 
     private lateinit var mapStyle: Style
     private lateinit var fabNavigate: FloatingActionButton
@@ -142,6 +151,8 @@ class NavigationActivity : AppCompatActivity() {
 
     private val viewmodel: NavigationViewModel by viewModels()
     private var times = 0
+    private var parentPoint: Point? = null
+
     private var currentPoint: Point? = null
     private var currentFeatures: List<Feature>? = null
     private var currentState: DLSState = DLSState(currentPoint, currentFeatures)
@@ -336,6 +347,7 @@ class NavigationActivity : AppCompatActivity() {
     private lateinit var sv: ScrollView
     private lateinit var tv: TextView
 
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(com.example.ecoroute.R.layout.activity_navigation)
@@ -401,8 +413,8 @@ class NavigationActivity : AppCompatActivity() {
 
         d.setNegativeButton(resources.getString(R.string.go)) { _, _ ->
             if (destinationSearchPoint != null) {
-                initiateDestiationPath(originPoint, destinationSearchPoint!!, style)
-
+//                initiateDestiationPath(originPoint, destinationSearchPoint!!, style)
+                astarInitiate(originPoint, destinationSearchPoint!!, style)
             }
         }
 
@@ -541,8 +553,8 @@ class NavigationActivity : AppCompatActivity() {
 
                     mapView.gestures.addOnMapClickListener {
 
-                        initiateDestiationPath(originPoint, it, style)
-
+//                        initiateDestiationPath(originPoint, it, style)
+                        astarInitiate(originPoint, it, style)
                         true
                     }
 
@@ -715,6 +727,206 @@ class NavigationActivity : AppCompatActivity() {
 
     }
 
+
+    private fun astarInitiate(originPoint: Point, destinationPoint: Point, style: Style) {
+        clearRoute()
+        val soc = if (initialSOC != null) {
+            MapUtils.convertChargeToSOC(initialSOC!!)
+        } else {
+            MAXIMUM_CHARGE
+        }
+        radius = 1.5 * eucledianDistance(originPoint, destinationPoint)
+        center = MapUtils.getCenter(originPoint, destinationPoint)
+
+        val currentNode =
+            Node(originPoint, 0.0, eucledianDistance(originPoint, destinationPoint), soc, null)
+        val destinationNode =
+            Node(destinationPoint, eucledianDistance(originPoint, destinationPoint), 0.0, 0, null)
+
+
+        priorityQueue.add(currentNode)
+        astar_callIsochrone(currentNode, destinationNode, style)
+
+
+    }
+
+    private fun astar_callIsochrone(currentNode: Node, destinationNode: Node, style: Style) {
+
+        if (currentNode.node_point != null) {
+
+            Log.e(
+                ASTAR,
+                "Called for Isochrone with currentPoint = ${currentNode.node_point.toString()}"
+            )
+
+            clearObservers()
+
+            viewmodel.mapboxIsochrone(
+                currentNode.node_point,
+                usePolygon,
+                resources.getString(R.string.mapbox_access_token),
+                currentNode.soc
+            ).observe(this, Observer { mReponse ->
+
+                if (viewmodel.isochroneMapboxFeature.value != null) {
+                    UiUtils().hideProgress(csl_view, pb, this)
+
+                    if (mReponse != null) {
+                        //For this unvisited node
+                        currentNode.features = mReponse
+                        nodeMap.add(currentNode)
+                        makeContour(
+                            style,
+                            FeatureCollection.fromFeature(currentNode.features!!.get(0))
+                        )
+
+                        if (astar_checkDestination(currentNode, destinationNode)) {
+                            //The destination lies here
+                            Log.e(
+                                ASTAR,
+                                "Destination found in isochrone with center ${currentNode.node_point}"
+                            )
+                            UiUtils().showSnackbar(csl_view, "Destination reached")
+
+                        } else {
+                            //Else the destination does not lie here. Need to find 3 most admissible points
+                            astar_callGeocode(currentNode, destinationNode, style)
+                        }
+
+
+                    } else {
+
+                        Log.e(
+                            ASTAR,
+                            "Failed Isochrone with currentPoint = ${currentNode.node_point.toString()} and message ${viewmodel.messageMapboxIsochrone.value.toString()}"
+                        )
+                    }
+                } else {
+
+                    UiUtils().showProgress(csl_view, pb, this)
+                }
+
+
+            })
+
+
+        } else {
+
+            Log.e(
+                ASTAR,
+                "Called for Isochrone with currentPoint = NULL"
+            )
+            UiUtils().showSnackbar(csl_view, "Can not reach destination")
+        }
+
+    }
+
+    private fun astar_callGeocode(currentNode: Node, destinationNode: Node, style: Style) {
+
+        clearObservers()
+        viewmodel.getGeocodeQuery(
+            geocodeURLBuilder(
+                currentNode.node_point!!,
+                currentNode.features!!
+            )
+        )
+            .observe(this, Observer { mReponse ->
+
+                if (viewmodel.geocodeQueryResponse.value != null) {
+                    UiUtils().hideProgress(csl_view, pb, this)
+                    if (mReponse != null) {
+
+                        //Populate the admissible points in pq
+                        atstar_findAdmissibleNodes(mReponse, currentNode, destinationNode)
+                        if (priorityQueue.isEmpty() || nodeMap.contains(priorityQueue.peek()!!)) {
+
+                            Log.e(
+                                ASTAR,
+                                "No admissible points found for ${currentNode.node_point}"
+                            )
+                            UiUtils().showSnackbar(csl_view, "Can not reach destination")
+                        } else {
+                            Log.e(
+                                ASTAR,
+                                "Admissible points found for ${priorityQueue.peek()!!.node_point}"
+                            )
+                            astar_callIsochrone(priorityQueue.peek()!!, destinationNode, style)
+                        }
+
+
+                    } else {
+
+                        Log.e(
+                            ASTAR,
+                            "Failed Geocode with currentPoint = ${currentNode.node_point.toString()} and message ${viewmodel.messageGeocode.value.toString()}"
+                        )
+                    }
+                } else {
+                    UiUtils().showProgress(csl_view, pb, this)
+                }
+
+
+            })
+
+    }
+
+    private fun atstar_findAdmissibleNodes(
+        mReponse: GeoCodedQueryResponse,
+        currentNode: Node,
+        destinationNode: Node
+    ) {
+
+        if (currentNode.node_point != null) {
+
+            //Remove the currentNode from pq
+            nodeMap.add(priorityQueue.remove())
+
+
+            val parent_gn = currentNode.g_n
+            var p: Point? = null
+            var p_gn = 0.0
+            var p_hn = 0.0
+            var pNode = Node(null, 0.0, 0.0, 0, null)
+            val childrenPrirorityQueue = PriorityQueue<Node>(compareByHeuristic)
+
+            for (e in 0 until mReponse.features.size) {
+
+                p = Point.fromLngLat(
+                    mReponse.features[e].center[0],
+                    mReponse.features[e].center[1]
+                )
+
+                p_gn = eucledianDistance(p, currentNode.node_point) + parent_gn
+                p_hn = eucledianDistance(p, destinationNode.node_point!!)
+                pNode = Node(p, p_gn, p_hn, MAXIMUM_CHARGE, null)
+
+                if (nodeMap.contains(pNode) || p_hn > MAXIMUM_THRESHOLD) {
+                    continue            //We have already counted this. Skip this
+                }
+
+                childrenPrirorityQueue.add(pNode)
+            }
+
+            //Add top 3 children
+            var cnt = 1
+            while (!childrenPrirorityQueue.isEmpty() && cnt > 0) {
+
+                priorityQueue.add(childrenPrirorityQueue.remove())
+//                nodeMap.add(childrenPrirorityQueue.remove())
+                cnt--;
+            }
+
+            Log.e(ASTAR, "# = ${priorityQueue.size}")
+        }
+
+        return
+    }
+
+    private fun astar_checkDestination(currentNode: Node, destinationNode: Node): Boolean {
+        return evaluateDestination(destinationNode.node_point!!, currentNode.features)
+    }
+
+
     private fun initiateDestiationPath(
         originPoint: Point,
         destinationPoint: Point,
@@ -728,6 +940,7 @@ class NavigationActivity : AppCompatActivity() {
             MAXIMUM_CHARGE
         }
 
+        parentPoint = null
         currentPoint = originPoint
         callForIsochrone(
             destinationPoint, style, soc
@@ -760,12 +973,15 @@ class NavigationActivity : AppCompatActivity() {
                     isochroneCenters.add(currentPoint!!)
 
 
+
                     if (currentFeatures != null) {
                         contourFeatures.add(FeatureCollection.fromFeature(currentFeatures!!.get(0)))
                         makeContour(
                             style = style,
                             FeatureCollection.fromFeature(currentFeatures!!.get(0))
                         )
+
+
                         checkForDestination(destinationPoint, style)
                     }
 
@@ -785,6 +1001,7 @@ class NavigationActivity : AppCompatActivity() {
         }
 
     }
+
 
     private fun checkForDestination(destinationPoint: Point, style: Style) {
 
@@ -812,6 +1029,7 @@ class NavigationActivity : AppCompatActivity() {
             .observe(this, Observer { mReponse ->
 
                 if (viewmodel.geocodeQueryResponse.value != null) {
+                    parentPoint = currentPoint
                     currentPoint = findAdmissiblePoint(mReponse, destinationPoint)
                     callForIsochrone(destinationPoint, style, MAXIMUM_CHARGE)
                 }
@@ -878,23 +1096,15 @@ class NavigationActivity : AppCompatActivity() {
         )
     }
 
-    private fun isochroneURLBuilder(originPoint: Point, soc: Double): String {
-        return resources.getString(
-            R.string.mapbox_isochrone_polygon,
-            resources.getString(R.string.driving_profile),
-            MapUtils.returnMapboxAcceptedLngLat(originPoint),
-            soc.toInt().toString(),
-            "4286f4",
-            "true",
-            resources.getString(R.string.mapbox_access_token)
-        )
-    }
-
     private fun eucledianDistance(p1: Point, p2: Point): Double {
         return TurfMeasurement.distance(p1, p2)
     }
 
-    private fun evaluateDestination(destinationPoint: Point, features: List<Feature>): Boolean {
+    private fun evaluateDestination(destinationPoint: Point, features: List<Feature>?): Boolean {
+        if (features == null) {
+            return false
+        }
+
         return TurfJoins.inside(destinationPoint, features[0].geometry() as Polygon)
     }
 
@@ -1255,6 +1465,11 @@ class NavigationActivity : AppCompatActivity() {
         locationPermissionHelper.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
+    private fun clearRoute(){
+        clearObservers()
+        priorityQueue.clear()
+        nodeMap.clear()
+    }
     private fun clearObservers() {
         viewmodel.successfulGeocode.removeObservers(this)
         viewmodel.successfulGeocode.value = null
