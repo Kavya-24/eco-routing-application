@@ -1,5 +1,6 @@
 package com.example.ecoroute.ui
 
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
 import android.content.pm.PackageManager
@@ -148,6 +149,7 @@ class NavigationActivity : AppCompatActivity() {
     private lateinit var etDestination: TextInputEditText
     private lateinit var searchResultView: SearchResultsView
     private lateinit var chargingSlider: Slider
+    private lateinit var tvCharging: TextView
     private var destinationSearchPoint: Point? = null
     private var initialSOC: Double? = null
 
@@ -392,6 +394,7 @@ class NavigationActivity : AppCompatActivity() {
 
     }
 
+    @SuppressLint("StringFormatInvalid", "SetTextI18n")
     private fun createDialog(originPoint: Point, style: Style) {
         val d = AlertDialog.Builder(this)
         val v = layoutInflater.inflate(R.layout.navigation_search, null)
@@ -400,7 +403,9 @@ class NavigationActivity : AppCompatActivity() {
         etDestination = v.findViewById(R.id.navigation_query_ui_destination_location)
         chargingSlider = v.findViewById(R.id.navigation_sliderEvCharge)
         searchResultView = v.findViewById(R.id.navigation_search_results_view)
+        tvCharging = v.findViewById(R.id.navigation_tvCharging)
 
+        tvCharging.text = resources.getString(R.string.charging) + " 20.0%"
         setUpSearchResultView(originPoint)
         addSearchResultViewListeners(originPoint)
         addQueryListeners(originPoint)
@@ -413,12 +418,14 @@ class NavigationActivity : AppCompatActivity() {
 
             override fun onStopTrackingTouch(slider: Slider) {
                 initialSOC = slider.value.toDouble()
+                tvCharging.text =
+                    resources.getString(R.string.charging) + " " + slider.value.toInt()
+                        .toString() + "%"
             }
         })
 
         d.setNegativeButton(resources.getString(R.string.go)) { _, _ ->
-            if (destinationSearchPoint != null) {
-//                initiateDestiationPath(originPoint, destinationSearchPoint!!, style)
+            if (destinationSearchPoint != null && !etDestination.text.isNullOrBlank()) {
                 astarInitiate(originPoint, destinationSearchPoint!!, style)
             }
         }

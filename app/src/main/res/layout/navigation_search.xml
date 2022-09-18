@@ -53,7 +53,6 @@
             android:layout_height="wrap_content"
             android:layout_margin="@dimen/space"
             android:padding="@dimen/space_half"
-            android:text="@string/charging"
             android:textSize="16sp"
             app:layout_constraintTop_toBottomOf="@id/navigation_frame_destination_location" />
 

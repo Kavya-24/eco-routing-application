@@ -9,7 +9,7 @@
     <string name="select_car">Select Car</string>
     <string name="charge_slider_desc">Input the initial charge of the car</string>
     <string name="go">GO</string>
-    <string name="charging">Charging Percentage</string>
+    <string name="charging">Charging Percentage: </string>
     <string name="title_activity_start_navigation">StartNavigationActivity</string>
 
 
