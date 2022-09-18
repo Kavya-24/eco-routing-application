@@ -26,6 +26,7 @@ import com.example.ecoroute.models.responses.GeoCodedQueryResponse
 import com.example.ecoroute.utils.LocationPermissionHelper
 import com.example.ecoroute.utils.MapUtils
 import com.example.ecoroute.utils.MapUtils.MAXIMUM_CHARGE
+import com.example.ecoroute.utils.MapUtils.MAXIMUM_NODES
 import com.example.ecoroute.utils.MapUtils.MAXIMUM_THRESHOLD
 import com.example.ecoroute.utils.UiUtils
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -134,7 +135,11 @@ class NavigationActivity : AppCompatActivity() {
 
     private val compareByHeuristic: Comparator<Node> = compareBy { it.g_n + it.h_n }
     private val priorityQueue = PriorityQueue<Node>(compareByHeuristic)
-    private val nodeMap = mutableListOf<Node>()
+    private val nodeMap = mutableSetOf<Point>()
+    private var countIso = 0
+    private var stationMap = mutableMapOf<Point, Int>()
+    private var outputLog = ""
+
     private val ASTAR = "ASTAR"
     private var radius by Delegates.notNull<Double>()
     private lateinit var center: Point
@@ -351,6 +356,7 @@ class NavigationActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(com.example.ecoroute.R.layout.activity_navigation)
+
 
         mapView = findViewById(R.id.mapView)
         mapboxMap = mapView.getMapboxMap()
@@ -754,12 +760,9 @@ class NavigationActivity : AppCompatActivity() {
 
         if (currentNode.node_point != null) {
 
-            Log.e(
-                ASTAR,
-                "Called for Isochrone with currentPoint = ${currentNode.node_point.toString()}"
-            )
 
             clearObservers()
+            outputLog += "\nCreating a geofence around ${currentNode.node_point} with charge ${currentNode.soc}"
 
             viewmodel.mapboxIsochrone(
                 currentNode.node_point,
@@ -774,19 +777,23 @@ class NavigationActivity : AppCompatActivity() {
                     if (mReponse != null) {
                         //For this unvisited node
                         currentNode.features = mReponse
-                        nodeMap.add(currentNode)
+                        nodeMap.add(currentNode.node_point)
+
                         makeContour(
                             style,
                             FeatureCollection.fromFeature(currentNode.features!!.get(0))
                         )
+                        countIso++
 
                         if (astar_checkDestination(currentNode, destinationNode)) {
                             //The destination lies here
-                            Log.e(
-                                ASTAR,
-                                "Destination found in isochrone with center ${currentNode.node_point}"
+                            outputLog += "\nDestination found in after station with center ${currentNode.node_point}"
+
+                            UiUtils().showSnackbar(
+                                csl_view,
+                                "Destination reached in $countIso step(s)"
                             )
-                            UiUtils().showSnackbar(csl_view, "Destination reached")
+                            logOutput()
 
                         } else {
                             //Else the destination does not lie here. Need to find 3 most admissible points
@@ -821,6 +828,10 @@ class NavigationActivity : AppCompatActivity() {
 
     }
 
+    private fun logOutput() {
+        Log.e(ASTAR, outputLog)
+    }
+
     private fun astar_callGeocode(currentNode: Node, destinationNode: Node, style: Style) {
 
         clearObservers()
@@ -838,18 +849,18 @@ class NavigationActivity : AppCompatActivity() {
 
                         //Populate the admissible points in pq
                         atstar_findAdmissibleNodes(mReponse, currentNode, destinationNode)
-                        if (priorityQueue.isEmpty() || nodeMap.contains(priorityQueue.peek()!!)) {
+                        if (priorityQueue.isEmpty()) {
 
-                            Log.e(
-                                ASTAR,
-                                "No admissible points found for ${currentNode.node_point}"
-                            )
-                            UiUtils().showSnackbar(csl_view, "Can not reach destination")
+                            outputLog += "\nNo valid stations found. Can not reach destination point ${destinationNode.node_point!!}"
+
+                            UiUtils().showSnackbar(csl_view, "Can not reach destination.")
+                            logOutput()
                         } else {
-                            Log.e(
-                                ASTAR,
-                                "Admissible points found for ${priorityQueue.peek()!!.node_point}"
-                            )
+
+                            outputLog += "\nUsing " + priorityQueue.peek()!!.node_point.toString() + " as a station after " + (stationMap[priorityQueue.peek()!!.node_point]?.minus(
+                                1
+                            )).toString() + " stations"
+
                             astar_callIsochrone(priorityQueue.peek()!!, destinationNode, style)
                         }
 
@@ -875,11 +886,14 @@ class NavigationActivity : AppCompatActivity() {
         currentNode: Node,
         destinationNode: Node
     ) {
+        if (priorityQueue.isEmpty()) {
+            return
+        }
 
         if (currentNode.node_point != null) {
 
             //Remove the currentNode from pq
-            nodeMap.add(priorityQueue.remove())
+            priorityQueue.remove().node_point?.let { nodeMap.add(it) }
 
 
             val parent_gn = currentNode.g_n
@@ -900,23 +914,29 @@ class NavigationActivity : AppCompatActivity() {
                 p_hn = eucledianDistance(p, destinationNode.node_point!!)
                 pNode = Node(p, p_gn, p_hn, MAXIMUM_CHARGE, null)
 
-                if (nodeMap.contains(pNode) || p_hn > MAXIMUM_THRESHOLD) {
+
+                if (nodeMap.contains(p) || p_hn > MAXIMUM_THRESHOLD) {
                     continue            //We have already counted this. Skip this
                 }
 
                 childrenPrirorityQueue.add(pNode)
             }
 
-            //Add top 3 children
-            var cnt = 1
+            var cnt = MAXIMUM_NODES
             while (!childrenPrirorityQueue.isEmpty() && cnt > 0) {
 
-                priorityQueue.add(childrenPrirorityQueue.remove())
-//                nodeMap.add(childrenPrirorityQueue.remove())
+                if (nodeMap.contains(childrenPrirorityQueue.peek()!!.node_point)) {
+                    childrenPrirorityQueue.remove()
+                    continue
+                }
+                priorityQueue.add(childrenPrirorityQueue.peek())
+                childrenPrirorityQueue.peek()!!.node_point?.let { nodeMap.add(it) }
+                stationMap[childrenPrirorityQueue.peek()!!.node_point!!] = countIso
+                childrenPrirorityQueue.remove()
                 cnt--;
             }
 
-            Log.e(ASTAR, "# = ${priorityQueue.size}")
+
         }
 
         return
@@ -1465,11 +1485,15 @@ class NavigationActivity : AppCompatActivity() {
         locationPermissionHelper.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
-    private fun clearRoute(){
+    private fun clearRoute() {
         clearObservers()
         priorityQueue.clear()
         nodeMap.clear()
+        stationMap.clear()
+        countIso = 0
+        outputLog = ""
     }
+
     private fun clearObservers() {
         viewmodel.successfulGeocode.removeObservers(this)
         viewmodel.successfulGeocode.value = null

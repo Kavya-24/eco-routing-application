@@ -14,6 +14,7 @@ object MapUtils {
 
     val MAXIMUM_CHARGE = 60
     val MAXIMUM_THRESHOLD = 10000
+    val MAXIMUM_NODES = 5
     fun convertChargeToSOC(initialSOC: Double): Int {
         return (initialSOC * 0.6).toInt()
     }
