@@ -124,6 +124,10 @@ import com.mapbox.search.ui.view.DistanceUnitType
 import com.mapbox.search.ui.view.SearchResultsView
 import com.mapbox.turf.TurfJoins
 import com.mapbox.turf.TurfMeasurement
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
 import java.util.*
 import kotlin.properties.Delegates
@@ -139,6 +143,11 @@ class NavigationActivity : AppCompatActivity() {
     private var outputLog = ""
     private lateinit var searchEngine: SearchEngine
     private lateinit var options: SearchOptions
+    private var difference_in_elevation = 0
+
+    private var currentHeight = 0
+    private var nextHeight = 0
+
 
     private val ASTAR = "ASTAR"
     private var radius by Delegates.notNull<Double>()
@@ -434,7 +443,6 @@ class NavigationActivity : AppCompatActivity() {
         d.show()
     }
 
-
     private fun addQueryListeners(originPoint: Point) {
         etDestination.addTextChangedListener(object : TextWatcher {
 
@@ -545,8 +553,11 @@ class NavigationActivity : AppCompatActivity() {
                         )
 
                     }
+
+
                     style.addSource(geoJsonSource(id = MAP_CLICK_SOURCE_ID))
                     style.addSource(geoJsonSource(ISOCHRONE_RESPONSE_GEOJSON_SOURCE_ID))
+
                     style.addLayer(symbolLayer(MAP_CLICK_MARKER_LAYER_ID, MAP_CLICK_SOURCE_ID) {
                         iconImage(MAP_CLICK_MARKER_ICON_ID)
                         iconIgnorePlacement(true)
@@ -867,7 +878,7 @@ class NavigationActivity : AppCompatActivity() {
                     if (mReponse != null) {
 
                         //Populate the admissible points in pq
-                        atstar_findAdmissibleNodes(mReponse, currentNode, destinationNode)
+                        atstar_findAdmissibleNodes(mReponse, currentNode, destinationNode, style)
                         if (priorityQueue.isEmpty()) {
 
                             outputLog += "\nNo valid stations found. Can not reach destination point ${destinationNode.node_point!!}"
@@ -946,10 +957,12 @@ class NavigationActivity : AppCompatActivity() {
         }
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     private fun atstar_findAdmissibleNodes(
         mReponse: GeoCodedQueryResponse,
         currentNode: Node,
-        destinationNode: Node
+        destinationNode: Node,
+        style: Style
     ) {
         if (priorityQueue.isEmpty()) {
             return
@@ -964,6 +977,7 @@ class NavigationActivity : AppCompatActivity() {
             val parent_gn = currentNode.g_n
             var p: Point? = null
             var p_gn = 0.0
+            var eData = 0.0
             var p_hn = 0.0
             var pNode = Node(null, 0.0, 0.0, 0, null)
             val childrenPrirorityQueue = PriorityQueue<Node>(compareByHeuristic)
@@ -975,16 +989,36 @@ class NavigationActivity : AppCompatActivity() {
                     mReponse.features[e].center[1]
                 )
 
-                p_gn = eucledianDistance(p, currentNode.node_point) + parent_gn
                 p_hn = eucledianDistance(p, destinationNode.node_point!!)
-                pNode = Node(p, p_gn, p_hn, MAXIMUM_CHARGE, null)
-
-
                 if (nodeMap.contains(p) || p_hn > MAXIMUM_THRESHOLD) {
-                    continue            //We have already counted this. Skip this
+                    continue            //We have already counted this. Or it is really far away from destination
                 }
 
-                childrenPrirorityQueue.add(pNode)
+                currentHeight = 0
+                nextHeight = 0
+
+                GlobalScope.launch(Dispatchers.Main) {
+                    getElevationData(
+                        currentNode.node_point,
+                        p,
+                        style
+                    )
+
+                    eData = (nextHeight - currentHeight).toDouble()
+                }
+
+                    p_gn = eucledianDistance(p, currentNode.node_point) + parent_gn + eData
+
+                    pNode = Node(p, p_gn, p_hn, MAXIMUM_CHARGE, null)
+
+                    Log.e(
+                        ASTAR,
+                        "For parent = ${currentNode.node_point} and child $p elevation data = ${eData}, zLevel = ${mapboxNavigation.getZLevel()} and h_n = $p_hn"
+                    )
+
+
+                    childrenPrirorityQueue.add(pNode)
+
             }
 
             var cnt = MAXIMUM_NODES
@@ -1007,7 +1041,57 @@ class NavigationActivity : AppCompatActivity() {
         return
     }
 
-    private fun astar_checkDestination(currentNode: Node, destinationNode: Node): Boolean {
+    @OptIn(DelicateCoroutinesApi::class)
+    private suspend fun getElevationData(nodePoint: Point, p: Point, style: Style) {
+
+
+        //do some background work
+        GlobalScope.launch(Dispatchers.Main) {
+            makeElevationRequestToTilequeryApi(0, style, nodePoint, p, nodePoint)
+            makeElevationRequestToTilequeryApi(1, style, nodePoint, p, p)
+        }
+
+
+    }
+
+    private fun makeElevationRequestToTilequeryApi(
+        t: Int,
+        style: Style,
+        nodePoint: Point,
+        nextPoint: Point,
+        p: Point
+    ) {
+
+        Log.e(ASTAR, "Making Elevation request t=$t")
+        clearElevationObserver()
+        viewmodel.mapboxTileQuery(p, resources.getString(R.string.mapbox_access_token))
+            .observe(this, Observer { it1 ->
+                if (viewmodel.successfulMapboxTileQuery.value != null) {
+                    if (it1 != null && it1.isNotEmpty()) {
+                        if (t == 0) {
+                            currentHeight = processElevations(it1)
+
+                        } else {
+                            nextHeight = processElevations(it1)
+                        }
+                    }
+                }
+            })
+    }
+
+    private fun processElevations(features: List<Feature>): Int {
+        var f = 0
+        for (x in features) {
+            f += x.getStringProperty("ele").toInt()
+        }
+        Log.e(ASTAR, " Now. : ${f / features.size}")
+        return f / features.size
+    }
+
+    private fun astar_checkDestination(
+        currentNode: Node,
+        destinationNode: Node
+    ): Boolean {
         return evaluateDestination(destinationNode.node_point!!, currentNode.features)
     }
 
@@ -1033,7 +1117,11 @@ class NavigationActivity : AppCompatActivity() {
     }
 
 
-    private fun callForIsochrone(destinationPoint: Point, style: Style, SOC: Int) {
+    private fun callForIsochrone(
+        destinationPoint: Point,
+        style: Style,
+        SOC: Int
+    ) {
 
         if (currentPoint != null) {
 
@@ -1060,7 +1148,11 @@ class NavigationActivity : AppCompatActivity() {
 
 
                     if (currentFeatures != null) {
-                        contourFeatures.add(FeatureCollection.fromFeature(currentFeatures!!.get(0)))
+                        contourFeatures.add(
+                            FeatureCollection.fromFeature(
+                                currentFeatures!!.get(0)
+                            )
+                        )
                         makeContour(
                             style = style,
                             FeatureCollection.fromFeature(currentFeatures!!.get(0))
@@ -1185,7 +1277,10 @@ class NavigationActivity : AppCompatActivity() {
         return TurfMeasurement.distance(p1, p2)
     }
 
-    private fun evaluateDestination(destinationPoint: Point, features: List<Feature>?): Boolean {
+    private fun evaluateDestination(
+        destinationPoint: Point,
+        features: List<Feature>?
+    ): Boolean {
         if (features == null) {
             return false
         }
@@ -1326,7 +1421,10 @@ class NavigationActivity : AppCompatActivity() {
                 ) {
                 }
 
-                override fun onCanceled(routeOptions: RouteOptions, routerOrigin: RouterOrigin) {
+                override fun onCanceled(
+                    routeOptions: RouteOptions,
+                    routerOrigin: RouterOrigin
+                ) {
                 }
             }
         )
@@ -1377,17 +1475,28 @@ class NavigationActivity : AppCompatActivity() {
                     routeOptions: RouteOptions
                 ) {
 
-                    Log.e("Navigation", "Failed Direction API because ${reasons.toString()}")
-                    Toast.makeText(this@NavigationActivity, "Failed = $reasons", Toast.LENGTH_LONG)
+                    Log.e(
+                        "Navigation",
+                        "Failed Direction API because ${reasons.toString()}"
+                    )
+                    Toast.makeText(
+                        this@NavigationActivity,
+                        "Failed = $reasons",
+                        Toast.LENGTH_LONG
+                    )
                         .show()
                 }
 
-                override fun onCanceled(routeOptions: RouteOptions, routerOrigin: RouterOrigin) {
+                override fun onCanceled(
+                    routeOptions: RouteOptions,
+                    routerOrigin: RouterOrigin
+                ) {
                 }
             }
         )
 
     }
+
 
     private fun setRouteAndStartNavigation(
         routes: List<DirectionsRoute>,
@@ -1403,7 +1512,8 @@ class NavigationActivity : AppCompatActivity() {
 
         /** show UI elements*/
         findViewById<MapboxSoundButton>(R.id.soundButton).visibility = View.VISIBLE
-        findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).visibility = View.VISIBLE
+        findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).visibility =
+            View.VISIBLE
         findViewById<CardView>(R.id.tripProgressCard).visibility = View.VISIBLE
 
         /** move the camera to overview when new route is available */
@@ -1412,7 +1522,10 @@ class NavigationActivity : AppCompatActivity() {
 
     }
 
-    private fun addAnnotationToMap(nodeLongitude: Double, nodeLatitude: Double) {
+    private fun addAnnotationToMap(
+        nodeLongitude: Double,
+        nodeLatitude: Double
+    ) {
 
         UiUtils().bitmapFromDrawableRes(
             this,
@@ -1443,7 +1556,10 @@ class NavigationActivity : AppCompatActivity() {
                 listOf(
                     ReplayRouteMapper.mapToUpdateLocation(
                         eventTimestamp = 0.0,
-                        point = Point.fromLngLat(-122.39726512303575, 37.785128345296805)
+                        point = Point.fromLngLat(
+                            -122.39726512303575,
+                            37.785128345296805
+                        )
                     )
                 )
             )
@@ -1491,7 +1607,8 @@ class NavigationActivity : AppCompatActivity() {
         /** hide UI elements*/
         findViewById<MapboxSoundButton>(R.id.soundButton).visibility = View.INVISIBLE
         findViewById<MapboxManeuverView>(R.id.maneuverView).visibility = View.INVISIBLE
-        findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).visibility = View.INVISIBLE
+        findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).visibility =
+            View.INVISIBLE
         findViewById<CardView>(R.id.tripProgressCard).visibility = View.INVISIBLE
 
         currentPoint = null
@@ -1536,7 +1653,11 @@ class NavigationActivity : AppCompatActivity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        locationPermissionHelper.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        locationPermissionHelper.onRequestPermissionsResult(
+            requestCode,
+            permissions,
+            grantResults
+        )
     }
 
     private fun clearRoute() {
@@ -1548,7 +1669,18 @@ class NavigationActivity : AppCompatActivity() {
         outputLog = ""
     }
 
+    private fun clearElevationObserver() {
+        viewmodel.successfulMapboxTileQuery.removeObservers(this)
+        viewmodel.successfulMapboxTileQuery.value = null
+        viewmodel.messageMapboxTileQuery.removeObservers(this)
+        viewmodel.messageMapboxTileQuery.value = null
+        viewmodel.tileQueryMapboxFeature.removeObservers(this)
+        viewmodel.tileQueryMapboxFeature.value = null
+    }
+
     private fun clearObservers() {
+
+        clearElevationObserver()
         viewmodel.successfulGeocode.removeObservers(this)
         viewmodel.successfulGeocode.value = null
         viewmodel.successfulMapboxIsochrone.removeObservers(this)

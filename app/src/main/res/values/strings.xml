@@ -18,6 +18,7 @@
     <string name="mapbox_directions_route">directions/v5/mapbox/%s/%s?geometries=%s&amp;access_token=%s</string>
     <string name="mapbox_isochrone_polygon">isochrone/v1/%s/%s?contours_meters=%s&amp;contours_colors=%s&amp;polygons=%s&amp;access_token=%s</string>
     <string name="mapbox_geocode_query">geocoding/v5/%s/%s?proximity=%s&amp;bbox=%s&amp;access_token=%s</string>
+    <string name="mapbox_tilequry_query">v4/mapbox.mapbox-terrain-v2/tilequery/%s?&amp;access_token=%s</string>
     <string name="ev_geocode_query">coffee.json</string>
     <string name="driving_profile">mapbox/driving</string>
 

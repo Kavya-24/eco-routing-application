@@ -11,6 +11,7 @@ import com.example.ecoroute.utils.ApplicationUtils
 import com.example.ecoroute.utils.UiUtils
 import com.mapbox.api.isochrone.IsochroneCriteria
 import com.mapbox.api.isochrone.MapboxIsochrone
+import com.mapbox.api.tilequery.MapboxTilequery
 import com.mapbox.geojson.Feature
 import com.mapbox.geojson.FeatureCollection
 import com.mapbox.geojson.Point
@@ -124,14 +125,15 @@ class NavigationViewModel : ViewModel() {
         originPoint: Point,
         usePolygon: Boolean,
         ACCESS_TOKEN: String,
-        SOC : Int
+        SOC: Int
     ): MutableLiveData<List<Feature>> {
-        isochroneMapboxFeature = createIsochroneAroundPoint(originPoint, usePolygon, ACCESS_TOKEN, SOC)
+        isochroneMapboxFeature =
+            createIsochroneAroundPoint(originPoint, usePolygon, ACCESS_TOKEN, SOC)
         return isochroneMapboxFeature
     }
 
     private fun createIsochroneAroundPoint(
-        originPoint: Point, usePolygon: Boolean, ACCESS_TOKEN: String, SOC : Int
+        originPoint: Point, usePolygon: Boolean, ACCESS_TOKEN: String, SOC: Int
     ): MutableLiveData<List<Feature>> {
 
 
@@ -182,5 +184,65 @@ class NavigationViewModel : ViewModel() {
 
         return isochroneMapboxFeature
     }
+
+
+    val successfulMapboxTileQuery: MutableLiveData<Boolean> = MutableLiveData()
+    var messageMapboxTileQuery: MutableLiveData<String> = MutableLiveData()
+    var tileQueryMapboxFeature: MutableLiveData<List<Feature>> = MutableLiveData()
+
+    fun mapboxTileQuery(
+        originPoint: Point,
+        ACCESS_TOKEN: String,
+
+    ): MutableLiveData<List<Feature>> {
+        tileQueryMapboxFeature =
+            createTileQueryAroundPoint(originPoint,ACCESS_TOKEN)
+        return tileQueryMapboxFeature
+    }
+
+    private fun createTileQueryAroundPoint(
+        p: Point, ACCESS_TOKEN: String
+    ): MutableLiveData<List<Feature>> {
+
+
+        val elevationQuery = MapboxTilequery.builder()
+            .accessToken(ACCESS_TOKEN)
+            .tilesetIds("mapbox.mapbox-terrain-v2")
+            .query(p)
+            .geometry("polygon")
+            .layers("contour")
+            .build()
+        elevationQuery.enqueueCall(object : Callback<FeatureCollection?> {
+
+            override fun onResponse(
+                call: Call<FeatureCollection?>?,
+                response: Response<FeatureCollection?>
+            ) {
+
+
+                if (response.body() != null && response.body()!!.features() != null) {
+                    Log.e(
+                        "ASTARN", "Elevation response message = ${response.message()} "
+                    )
+                    tileQueryMapboxFeature.value = response.body()!!.features()!!
+                    successfulMapboxTileQuery.value = true
+                    messageMapboxTileQuery.value = response.message()
+                } else {
+                    successfulMapboxTileQuery.value = false
+                    messageMapboxTileQuery.value = response.message()
+                }
+            }
+
+            override fun onFailure(call: Call<FeatureCollection?>?, throwable: Throwable) {
+                successfulMapboxTileQuery.value = false
+                messageMapboxTileQuery.value = UiUtils().returnStateMessageForThrowable(throwable)
+                UiUtils().logThrowables(TAG, throwable)
+
+            }
+        })
+
+        return tileQueryMapboxFeature
+    }
+
 
 }
