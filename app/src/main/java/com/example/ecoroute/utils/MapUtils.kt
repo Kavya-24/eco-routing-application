@@ -15,13 +15,17 @@ object MapUtils {
     val MAXIMUM_CHARGE = 60
     val MAXIMUM_THRESHOLD = 10000
     val MAXIMUM_NODES = 5
+    val MAXIMUM_FOUND = 20
     fun convertChargeToSOC(initialSOC: Double): Int {
         return (initialSOC * 0.6).toInt()
     }
 
     fun getCenter(o1: Point, o2: Point): Point {
 
-        return Point.fromLngLat((o1.longitude() + o2.longitude())/2, (o1.latitude() + o2.latitude())/2)
+        return Point.fromLngLat(
+            (o1.longitude() + o2.longitude()) / 2,
+            (o1.latitude() + o2.latitude()) / 2
+        )
     }
 
     private val pixelDensity = Resources.getSystem().displayMetrics.density
@@ -86,6 +90,14 @@ object MapUtils {
 
         return "$minLong,$minLat,$maxLong,$maxLat"
     }
+
+    data class bbox_data(
+        val bbox_west: Double,
+        val bbox_east: Double,
+        val bbox_south: Double,
+        val bbox_north: Double
+    )
+
 
 
     fun getDirectionBearings(

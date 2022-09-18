@@ -40,7 +40,6 @@ import com.mapbox.geojson.Feature
 import com.mapbox.geojson.FeatureCollection
 import com.mapbox.geojson.Point
 import com.mapbox.geojson.Polygon
-import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
 import com.mapbox.maps.MapboxMap
 import com.mapbox.maps.Style
@@ -115,9 +114,7 @@ import com.mapbox.navigation.ui.voice.model.SpeechError
 import com.mapbox.navigation.ui.voice.model.SpeechValue
 import com.mapbox.navigation.ui.voice.model.SpeechVolume
 import com.mapbox.navigation.ui.voice.view.MapboxSoundButton
-import com.mapbox.search.OfflineSearchEngineSettings
-import com.mapbox.search.ResponseInfo
-import com.mapbox.search.SearchEngineSettings
+import com.mapbox.search.*
 import com.mapbox.search.record.HistoryRecord
 import com.mapbox.search.result.SearchResult
 import com.mapbox.search.result.SearchSuggestion
@@ -139,6 +136,8 @@ class NavigationActivity : AppCompatActivity() {
     private var countIso = 0
     private var stationMap = mutableMapOf<Point, Int>()
     private var outputLog = ""
+    private lateinit var searchEngine: SearchEngine
+    private lateinit var options: SearchOptions
 
     private val ASTAR = "ASTAR"
     private var radius by Delegates.notNull<Double>()
@@ -727,12 +726,18 @@ class NavigationActivity : AppCompatActivity() {
             return
         }
 
-
+        initateSearchEngine()
         mapboxNavigation.startTripSession()
 
 
     }
 
+    private fun initateSearchEngine() {
+        searchEngine =
+            MapboxSearchSdk.createSearchEngine(SearchEngineSettings(resources.getString(R.string.mapbox_access_token)))
+
+
+    }
 
     private fun astarInitiate(originPoint: Point, destinationPoint: Point, style: Style) {
         clearRoute()
@@ -835,6 +840,13 @@ class NavigationActivity : AppCompatActivity() {
     private fun astar_callGeocode(currentNode: Node, destinationNode: Node, style: Style) {
 
         clearObservers()
+//        options = SearchOptions.Builder()
+//            .limit(MAXIMUM_FOUND)
+//            .origin(currentNode.node_point!!)
+//            .build()
+//
+//        searchEngine.search("petrol pump", options, searchCallback)
+
         viewmodel.getGeocodeQuery(
             geocodeURLBuilder(
                 currentNode.node_point!!,
@@ -879,6 +891,52 @@ class NavigationActivity : AppCompatActivity() {
 
             })
 
+    }
+
+    val searchCallback = object : SearchSelectionCallback {
+
+
+        override fun onSuggestions(
+            suggestions: List<SearchSuggestion>,
+            responseInfo: ResponseInfo
+        ) {
+
+            if (suggestions.isEmpty()) {
+                Log.e(ASTAR, "No search suggestions found")
+            } else {
+
+                for (r in suggestions) {
+                    Log.e(
+                        ASTAR,
+                        "result name, country: ${r.name} and ${r.address} and ${r.address?.country}"
+                    )
+                }
+
+
+            }
+
+        }
+
+
+        override fun onResult(
+            suggestion: SearchSuggestion,
+            result: SearchResult,
+            responseInfo: ResponseInfo
+        ) {
+            val location = result.coordinate
+            Log.e(ASTAR, "Search result's location: $location")
+        }
+
+        override fun onCategoryResult(
+            suggestion: SearchSuggestion,
+            results: List<SearchResult>,
+            responseInfo: ResponseInfo
+        ) {
+        }
+
+        override fun onError(e: Exception) {
+            Log.e(ASTAR, "Search error", e)
+        }
     }
 
     private fun atstar_findAdmissibleNodes(
@@ -1159,17 +1217,6 @@ class NavigationActivity : AppCompatActivity() {
             }
         }
 
-        val currentZoom = mapboxMap.cameraState.zoom
-
-        if (currentZoom > 14) {
-
-            mapboxMap.setCamera(
-                CameraOptions.Builder()
-                    .zoom(currentZoom - 5)
-                    .build()
-            )
-
-        }
 
     }
 
