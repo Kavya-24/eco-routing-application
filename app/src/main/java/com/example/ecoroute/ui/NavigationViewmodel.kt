@@ -221,12 +221,13 @@ class NavigationViewModel : ViewModel() {
 
 
                 if (response.body() != null && response.body()!!.features() != null) {
-                    Log.e(
-                        "ASTARN", "Elevation response message = ${response.message()} "
-                    )
+
                     tileQueryMapboxFeature.value = response.body()!!.features()!!
                     successfulMapboxTileQuery.value = true
                     messageMapboxTileQuery.value = response.message()
+                    Log.e(
+                        "ASTARN", "Elevation response message = ${response.message()}"
+                    )
                 } else {
                     successfulMapboxTileQuery.value = false
                     messageMapboxTileQuery.value = response.message()
