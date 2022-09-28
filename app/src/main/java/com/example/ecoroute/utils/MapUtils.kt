@@ -2,11 +2,13 @@ package com.example.ecoroute.utils
 
 import android.content.res.Resources
 import android.location.Location
+import android.util.Log
 import com.mapbox.api.directions.v5.models.Bearing
 import com.mapbox.geojson.Feature
 import com.mapbox.geojson.Point
 import com.mapbox.geojson.Polygon
 import com.mapbox.maps.EdgeInsets
+import com.mapbox.turf.TurfMeasurement
 import java.lang.Double.max
 import java.lang.Double.min
 
@@ -14,7 +16,7 @@ object MapUtils {
 
     val MAXIMUM_CHARGE = 60
     val MAXIMUM_THRESHOLD = 10000
-    val MAXIMUM_NODES = 5
+    val MAXIMUM_NODES = 3
     val MAXIMUM_FOUND = 20
     fun convertChargeToSOC(initialSOC: Double): Int {
         return (initialSOC * 0.6).toInt()
@@ -26,6 +28,12 @@ object MapUtils {
             (o1.longitude() + o2.longitude()) / 2,
             (o1.latitude() + o2.latitude()) / 2
         )
+    }
+
+    fun pointInAdmissibleCircle(c1: Point, p: Point, r: Double): Boolean {
+        val distanceToCenter = TurfMeasurement.distance(c1, p)
+        Log.e("ASTAR", "Len distance between c, point = $distanceToCenter")
+        return distanceToCenter<= r
     }
 
     private val pixelDensity = Resources.getSystem().displayMetrics.density
@@ -99,7 +107,6 @@ object MapUtils {
     )
 
 
-
     fun getDirectionBearings(
         originLocation: Location,
         isochroneCenters: MutableList<Point>
@@ -127,7 +134,7 @@ object MapUtils {
         isochroneCenters.forEach { it ->
             zLevels.add(it.altitude().toInt())
         }
-
+        Log.e("ASTAR", "ZLevels to bearing: ${zLevels.toString()}")
         return zLevels
     }
 

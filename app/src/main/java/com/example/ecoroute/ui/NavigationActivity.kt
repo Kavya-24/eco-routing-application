@@ -28,7 +28,6 @@ import com.example.ecoroute.utils.LocationPermissionHelper
 import com.example.ecoroute.utils.MapUtils
 import com.example.ecoroute.utils.MapUtils.MAXIMUM_CHARGE
 import com.example.ecoroute.utils.MapUtils.MAXIMUM_NODES
-import com.example.ecoroute.utils.MapUtils.MAXIMUM_THRESHOLD
 import com.example.ecoroute.utils.UiUtils
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.slider.Slider
@@ -152,6 +151,7 @@ class NavigationActivity : AppCompatActivity() {
     private var nextHeight = 0
     private val ASTAR = "ASTAR"
     private val elevationMap = mutableMapOf<Point, Int>()
+    private var close_list_points = mutableListOf<Point>()
 
     private var radius by Delegates.notNull<Double>()
     private lateinit var center: Point
@@ -788,6 +788,7 @@ class NavigationActivity : AppCompatActivity() {
         }
         radius = 1.5 * eucledianDistance(originPoint, destinationPoint)
         center = MapUtils.getCenter(originPoint, destinationPoint)
+        Log.e(ASTAR, "Radius = $radius and center = $center")
 
         val currentNode =
             Node(originPoint, 0.0, eucledianDistance(originPoint, destinationPoint), soc, null)
@@ -807,6 +808,7 @@ class NavigationActivity : AppCompatActivity() {
 
 
             clearObservers()
+            close_list_points.add(currentNode.node_point)
             outputLog += "\nCreating a geofence around ${currentNode.node_point} with charge ${currentNode.soc}"
 
             viewmodel.mapboxIsochrone(
@@ -839,6 +841,8 @@ class NavigationActivity : AppCompatActivity() {
                                 "Destination reached in $countIso step(s)"
                             )
                             logOutput()
+                            astarRouteSelection(destinationNode.node_point!!)
+
 
                         } else {
                             //Else the destination does not lie here. Need to find 3 most admissible points
@@ -964,33 +968,37 @@ class NavigationActivity : AppCompatActivity() {
                         mReponse.features[e].center[1]
                     )
 
-                    p_hn = eucledianDistance(p, destinationNode.node_point!!)
-                    if (nodeMap.contains(p) || p_hn > MAXIMUM_THRESHOLD) {
-                        continue            //We have already counted this. Or it is really far away from destination
+
+
+
+                    if (nodeMap.contains(p) || !MapUtils.pointInAdmissibleCircle(
+                            center,
+                            p,
+                            radius
+                        )
+                    ) {
+                        continue            //We have already counted this. Or it is really far away from destination and lies outside the circle
                     }
 
                     currentHeight = 0
                     nextHeight = 0
 
 
-
+                    /*
                     getElevationData(
                         currentNode.node_point,
                         p,
                         style
-                    )
+                    ) */
 
 
 
 
 
                     eData = (nextHeight - currentHeight).toDouble()
-
-
                     p_gn = eucledianDistance(p, currentNode.node_point) + parent_gn + eData
-
+                    p_hn = eucledianDistance(p, destinationNode.node_point!!)
                     pNode = Node(p, p_gn, p_hn, MAXIMUM_CHARGE, null)
-
 
 
                     childrenPrirorityQueue.add(pNode)
@@ -1496,6 +1504,72 @@ class NavigationActivity : AppCompatActivity() {
 
     }
 
+    private fun astarRouteSelection(destinationPoint: Point) {
+
+
+        if (close_list_points.isEmpty()) {
+            return findRoute(destinationPoint)
+        }
+
+
+        val originLocation = navigationLocationProvider.lastLocation
+        val originPoint = originLocation?.let {
+            Point.fromLngLat(it.longitude, it.latitude)
+        } ?: return
+
+        if (close_list_points.last() != destinationPoint) {
+            close_list_points.add(destinationPoint)
+        }
+
+        Log.e(ASTAR, "Directional API close_list  ${close_list_points.toString()}")
+
+
+        mapboxNavigation.requestRoutes(
+            RouteOptions.builder()
+                .applyDefaultNavigationOptions()
+                .applyLanguageAndVoiceUnitOptions(this)
+                .coordinatesList(close_list_points.toList())
+                .bearingsList(
+                    MapUtils.getDirectionBearings(originLocation, close_list_points).toList()
+                )
+                .layersList(MapUtils.getDirectionLayers(close_list_points))
+                .build(),
+            object : RouterCallback {
+                override fun onRoutesReady(
+                    routes: List<DirectionsRoute>,
+                    routerOrigin: RouterOrigin
+                ) {
+                    setRouteAndStartNavigation(routes, originPoint, destinationPoint)
+
+                }
+
+                override fun onFailure(
+                    reasons: List<RouterFailure>,
+                    routeOptions: RouteOptions
+                ) {
+
+                    Log.e(
+                        ASTAR,
+                        "Failed Direction API because ${reasons.toString()}"
+                    )
+                    Toast.makeText(
+                        this@NavigationActivity,
+                        "Failed = $reasons",
+                        Toast.LENGTH_LONG
+                    )
+                        .show()
+                }
+
+                override fun onCanceled(
+                    routeOptions: RouteOptions,
+                    routerOrigin: RouterOrigin
+                ) {
+                }
+            }
+        )
+
+    }
+
     private fun setRouteAndStartNavigation(
         routes: List<DirectionsRoute>,
         sourcePoint: Point,
@@ -1549,26 +1623,27 @@ class NavigationActivity : AppCompatActivity() {
         mapboxNavigation.registerVoiceInstructionsObserver(voiceInstructionsObserver)
         mapboxNavigation.registerRouteProgressObserver(replayProgressObserver)
 
-        if (mapboxNavigation.getNavigationRoutes().toDirectionsRoutes().isEmpty()) {
-            mapboxReplayer.pushEvents(
-                listOf(
-                    ReplayRouteMapper.mapToUpdateLocation(
-                        eventTimestamp = 0.0,
-                        point = Point.fromLngLat(
-                            -122.39726512303575,
-                            37.785128345296805
-                        )
-                    )
-                )
-            )
-            mapboxReplayer.playFirstLocation()
-        }
+//        if (mapboxNavigation.getNavigationRoutes().toDirectionsRoutes().isEmpty()) {
+//            mapboxReplayer.pushEvents(
+//                listOf(
+//                    ReplayRouteMapper.mapToUpdateLocation(
+//                        eventTimestamp = 0.0,
+//                        point = Point.fromLngLat(
+//                            -122.39726512303575,
+//                            37.785128345296805
+//                        )
+//                    )
+//                )
+//            )
+//            mapboxReplayer.playFirstLocation()
+//        }
     }
 
     override fun onStop() {
         super.onStop()
 
         //Clear viewmodel observers
+        clearRoute()
         clearObservers()
         // unregister event listeners to prevent leaks or unnecessary resource consumption
         mapboxNavigation.unregisterRoutesObserver(routesObserver)
@@ -1616,6 +1691,8 @@ class NavigationActivity : AppCompatActivity() {
         isochroneCenters = mutableListOf<Point>()
         contourFeatures = mutableListOf<FeatureCollection>()
 
+        clearRoute()
+
     }
 
     private fun startSimulation(route: DirectionsRoute) {
@@ -1655,6 +1732,7 @@ class NavigationActivity : AppCompatActivity() {
         countIso = 0
         outputLog = ""
         elevationMap.clear()
+        close_list_points.clear()
     }
 
     private fun clearElevationObserver() {
