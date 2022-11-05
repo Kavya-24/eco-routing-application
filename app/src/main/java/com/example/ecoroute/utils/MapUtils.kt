@@ -3,12 +3,19 @@ package com.example.ecoroute.utils
 import android.content.res.Resources
 import android.location.Location
 import android.util.Log
+import com.example.ecoroute.models.astar.Node
 import com.mapbox.api.directions.v5.models.Bearing
+import com.mapbox.api.directions.v5.models.DirectionsRoute
+import com.mapbox.core.constants.Constants
 import com.mapbox.geojson.Feature
 import com.mapbox.geojson.Point
 import com.mapbox.geojson.Polygon
+import com.mapbox.geojson.utils.PolylineUtils
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.turf.TurfMeasurement
+import com.mapbox.vision.ar.core.models.ManeuverType
+import com.mapbox.vision.ar.core.models.RoutePoint
+import com.mapbox.vision.mobile.core.models.position.GeoCoordinate
 import java.lang.Double.max
 import java.lang.Double.min
 
@@ -17,7 +24,13 @@ object MapUtils {
     val MAXIMUM_CHARGE = 60
     val MAXIMUM_THRESHOLD = 10000
     val MAXIMUM_NODES = 3
+    val MAXIMUM_STATION_NODES = 5
     val MAXIMUM_FOUND = 20
+
+    val ALPHA = -10
+    val BETA = 10
+
+    val compareByHeuristic: Comparator<Node> = compareBy { it.g_n + it.h_n }
     fun convertChargeToSOC(initialSOC: Double): Int {
         return (initialSOC * 0.6).toInt()
     }
@@ -25,49 +38,35 @@ object MapUtils {
     fun getCenter(o1: Point, o2: Point): Point {
 
         return Point.fromLngLat(
-            (o1.longitude() + o2.longitude()) / 2,
-            (o1.latitude() + o2.latitude()) / 2
+            (o1.longitude() + o2.longitude()) / 2, (o1.latitude() + o2.latitude()) / 2
         )
     }
 
     fun pointInAdmissibleCircle(c1: Point, p: Point, r: Double): Boolean {
         val distanceToCenter = TurfMeasurement.distance(c1, p)
-        Log.e("ASTAR", "Len distance between c, point = $distanceToCenter")
-        return distanceToCenter<= r
+        return distanceToCenter <= r
     }
 
     private val pixelDensity = Resources.getSystem().displayMetrics.density
 
     val overviewPadding: EdgeInsets by lazy {
         EdgeInsets(
-            140.0 * pixelDensity,
-            40.0 * pixelDensity,
-            120.0 * pixelDensity,
-            40.0 * pixelDensity
+            140.0 * pixelDensity, 40.0 * pixelDensity, 120.0 * pixelDensity, 40.0 * pixelDensity
         )
     }
     val landscapeOverviewPadding: EdgeInsets by lazy {
         EdgeInsets(
-            30.0 * pixelDensity,
-            380.0 * pixelDensity,
-            110.0 * pixelDensity,
-            20.0 * pixelDensity
+            30.0 * pixelDensity, 380.0 * pixelDensity, 110.0 * pixelDensity, 20.0 * pixelDensity
         )
     }
     val followingPadding: EdgeInsets by lazy {
         EdgeInsets(
-            180.0 * pixelDensity,
-            40.0 * pixelDensity,
-            150.0 * pixelDensity,
-            40.0 * pixelDensity
+            180.0 * pixelDensity, 40.0 * pixelDensity, 150.0 * pixelDensity, 40.0 * pixelDensity
         )
     }
     val landscapeFollowingPadding: EdgeInsets by lazy {
         EdgeInsets(
-            30.0 * pixelDensity,
-            380.0 * pixelDensity,
-            110.0 * pixelDensity,
-            40.0 * pixelDensity
+            30.0 * pixelDensity, 380.0 * pixelDensity, 110.0 * pixelDensity, 40.0 * pixelDensity
         )
     }
 
@@ -100,16 +99,12 @@ object MapUtils {
     }
 
     data class bbox_data(
-        val bbox_west: Double,
-        val bbox_east: Double,
-        val bbox_south: Double,
-        val bbox_north: Double
+        val bbox_west: Double, val bbox_east: Double, val bbox_south: Double, val bbox_north: Double
     )
 
 
     fun getDirectionBearings(
-        originLocation: Location,
-        isochroneCenters: MutableList<Point>
+        originLocation: Location, isochroneCenters: MutableList<Point>
     ): MutableList<Bearing?> {
 
 
@@ -117,10 +112,7 @@ object MapUtils {
 
         for (e in 0..isochroneCenters.size - 2) {
             bearings.add(
-                Bearing.builder()
-                    .angle(originLocation.bearing.toDouble())
-                    .degrees(45.0)
-                    .build()
+                Bearing.builder().angle(originLocation.bearing.toDouble()).degrees(45.0).build()
             )
         }
 
@@ -136,6 +128,10 @@ object MapUtils {
         }
         Log.e("ASTAR", "ZLevels to bearing: ${zLevels.toString()}")
         return zLevels
+    }
+
+    fun eucledianDistance(p1: Point, p2: Point): Double {
+        return TurfMeasurement.distance(p1, p2)
     }
 
 

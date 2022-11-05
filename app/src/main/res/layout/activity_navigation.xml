@@ -81,8 +81,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_margin="@dimen/space_2x"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/fab_navigate"/>
+        app:layout_constraintBottom_toTopOf="@id/fab_navigate"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -94,6 +94,17 @@
         app:backgroundTint="@color/colorAccent"
         app:layout_constraintBottom_toTopOf="@id/tripProgressCard"
         app:layout_constraintEnd_toEndOf="parent" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/mtb_extralims"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/space_2x"
+        android:visibility="gone"
+        app:backgroundTint="@color/colorWhite"
+        app:cornerRadius="@dimen/space"
+        app:layout_constraintBottom_toTopOf="@id/tripProgressCard"
+        app:layout_constraintStart_toStartOf="parent" />
 
     <androidx.cardview.widget.CardView
         android:id="@+id/tripProgressCard"

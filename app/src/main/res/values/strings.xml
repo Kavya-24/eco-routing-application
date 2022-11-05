@@ -38,6 +38,7 @@
     <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
     <string name="isochrone_null">No surroundings found</string>
     <string name="geocode_query_null">No queired features of interest found</string>
+    <string name="profileparams">%s U</string>
 
 
 </resources>

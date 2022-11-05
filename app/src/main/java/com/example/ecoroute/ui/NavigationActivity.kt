@@ -28,7 +28,11 @@ import com.example.ecoroute.utils.LocationPermissionHelper
 import com.example.ecoroute.utils.MapUtils
 import com.example.ecoroute.utils.MapUtils.MAXIMUM_CHARGE
 import com.example.ecoroute.utils.MapUtils.MAXIMUM_NODES
+import com.example.ecoroute.utils.MapUtils.compareByHeuristic
+import com.example.ecoroute.utils.MapUtils.eucledianDistance
+import com.example.ecoroute.utils.PathUtils
 import com.example.ecoroute.utils.UiUtils
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
@@ -123,7 +127,6 @@ import com.mapbox.search.ui.view.CommonSearchViewConfiguration
 import com.mapbox.search.ui.view.DistanceUnitType
 import com.mapbox.search.ui.view.SearchResultsView
 import com.mapbox.turf.TurfJoins
-import com.mapbox.turf.TurfMeasurement
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -138,7 +141,7 @@ import kotlin.properties.Delegates
 class NavigationActivity : AppCompatActivity() {
 
 
-    private val compareByHeuristic: Comparator<Node> = compareBy { it.g_n + it.h_n }
+    private var NAVIGATION_IN_PROGRESS = false
     private val priorityQueue = PriorityQueue<Node>(compareByHeuristic)
     private val nodeMap = mutableSetOf<Point>()
     private var countIso = 0
@@ -156,7 +159,10 @@ class NavigationActivity : AppCompatActivity() {
     private var radius by Delegates.notNull<Double>()
     private lateinit var center: Point
     private lateinit var mapStyle: Style
+
     private lateinit var fabNavigate: FloatingActionButton
+    lateinit var mtbExtraLims: MaterialButton
+
     private lateinit var etDestination: TextInputEditText
     private lateinit var searchResultView: SearchResultsView
     private lateinit var chargingSlider: Slider
@@ -398,6 +404,7 @@ class NavigationActivity : AppCompatActivity() {
         pb = findViewById(R.id.pb_navigation)
         csl_view = findViewById(R.id.csl_navigation)
         fabNavigate = findViewById(R.id.fab_navigate)
+        mtbExtraLims = findViewById(R.id.mtb_extralims)
 
         locationPermissionHelper = LocationPermissionHelper(WeakReference(this))
         locationPermissionHelper.checkPermissions {
@@ -597,14 +604,19 @@ class NavigationActivity : AppCompatActivity() {
 
 
                     mapView.gestures.addOnMapClickListener {
-
-//                        initiateDestiationPath(originPoint, it, style)
-                        astarInitiate(originPoint, it, style)
+                        if (!NAVIGATION_IN_PROGRESS) {
+                            astarInitiate(originPoint, it, style)
+                        }
                         true
                     }
 
+
+
                     mapView.gestures.addOnMapLongClickListener {
-                        findRoute(it)
+                        if (!NAVIGATION_IN_PROGRESS) {
+                            findRoute(it)
+                        }
+
                         true
                     }
                     MAP_READY = true
@@ -809,7 +821,11 @@ class NavigationActivity : AppCompatActivity() {
 
             clearObservers()
             close_list_points.add(currentNode.node_point)
-            outputLog += "\nCreating a geofence around ${currentNode.node_point} with charge ${currentNode.soc}"
+            Log.e(
+                ASTAR,
+                "\nCreating a geofence around ${currentNode.node_point} with charge ${currentNode.soc}"
+            )
+
 
             viewmodel.mapboxIsochrone(
                 currentNode.node_point,
@@ -825,6 +841,7 @@ class NavigationActivity : AppCompatActivity() {
                         //For this unvisited node
                         currentNode.features = mReponse
                         nodeMap.add(currentNode.node_point)
+                        priorityQueue.remove()
 
                         makeContour(
                             style,
@@ -834,13 +851,16 @@ class NavigationActivity : AppCompatActivity() {
 
                         if (astar_checkDestination(currentNode, destinationNode)) {
                             //The destination lies here
-                            outputLog += "\nDestination found in after station with center ${currentNode.node_point}"
+                            Log.e(
+                                ASTAR,
+                                "\nDestination found in after station with center ${currentNode.node_point}"
+                            )
 
                             UiUtils().showSnackbar(
                                 csl_view,
                                 "Destination reached in $countIso step(s)"
                             )
-                            logOutput()
+
                             astarRouteSelection(destinationNode.node_point!!)
 
 
@@ -877,19 +897,10 @@ class NavigationActivity : AppCompatActivity() {
 
     }
 
-    private fun logOutput() {
-        Log.e(ASTAR, outputLog)
-    }
 
     private fun astar_callGeocode(currentNode: Node, destinationNode: Node, style: Style) {
 
         clearObservers()
-//        options = SearchOptions.Builder()
-//            .limit(MAXIMUM_FOUND)
-//            .origin(currentNode.node_point!!)
-//            .build()
-//
-//        searchEngine.search("petrol pump", options, searchCallback)
 
         viewmodel.getGeocodeQuery(
             geocodeURLBuilder(
@@ -903,19 +914,25 @@ class NavigationActivity : AppCompatActivity() {
                     UiUtils().hideProgress(csl_view, pb, this)
                     if (mReponse != null) {
 
-                        //Populate the admissible points in pq
+
                         atstar_findAdmissibleNodes(mReponse, currentNode, destinationNode, style)
                         if (priorityQueue.isEmpty()) {
 
-                            outputLog += "\nNo valid stations found. Can not reach destination point ${destinationNode.node_point!!}"
+                            Log.e(
+                                ASTAR,
+                                "\nNo valid stations found. Can not reach destination point ${destinationNode.node_point!!}"
+                            )
 
                             UiUtils().showSnackbar(csl_view, "Can not reach destination.")
-                            logOutput()
+
                         } else {
 
-                            outputLog += "\nUsing " + priorityQueue.peek()!!.node_point.toString() + " as a station after " + (stationMap[priorityQueue.peek()!!.node_point]?.minus(
-                                1
-                            )).toString() + " stations"
+                            Log.e(
+                                ASTAR,
+                                "\nUsing " + priorityQueue.peek()!!.node_point.toString() + " as a station after " + (stationMap[priorityQueue.peek()!!.node_point]?.minus(
+                                    1
+                                )).toString() + " stations"
+                            )
 
                             astar_callIsochrone(priorityQueue.peek()!!, destinationNode, style)
                         }
@@ -969,29 +986,20 @@ class NavigationActivity : AppCompatActivity() {
                     )
 
 
-
-
+                    /**
+                     * We have already counted this. Or it is really far away from destination and lies outside the circle
+                     */
                     if (nodeMap.contains(p) || !MapUtils.pointInAdmissibleCircle(
                             center,
                             p,
                             radius
                         )
                     ) {
-                        continue            //We have already counted this. Or it is really far away from destination and lies outside the circle
+                        continue
                     }
 
                     currentHeight = 0
                     nextHeight = 0
-
-
-                    /*
-                    getElevationData(
-                        currentNode.node_point,
-                        p,
-                        style
-                    ) */
-
-
 
 
 
@@ -1281,9 +1289,6 @@ class NavigationActivity : AppCompatActivity() {
         )
     }
 
-    private fun eucledianDistance(p1: Point, p2: Point): Double {
-        return TurfMeasurement.distance(p1, p2)
-    }
 
     private fun evaluateDestination(
         destinationPoint: Point,
@@ -1418,6 +1423,7 @@ class NavigationActivity : AppCompatActivity() {
                     routes: List<DirectionsRoute>,
                     routerOrigin: RouterOrigin
                 ) {
+
                     setRouteAndStartNavigation(routes, originPoint, destinationPoint)
 
                 }
@@ -1521,6 +1527,8 @@ class NavigationActivity : AppCompatActivity() {
             close_list_points.add(destinationPoint)
         }
 
+
+
         Log.e(ASTAR, "Directional API close_list  ${close_list_points.toString()}")
 
 
@@ -1539,6 +1547,8 @@ class NavigationActivity : AppCompatActivity() {
                     routes: List<DirectionsRoute>,
                     routerOrigin: RouterOrigin
                 ) {
+
+
                     setRouteAndStartNavigation(routes, originPoint, destinationPoint)
 
                 }
@@ -1570,16 +1580,38 @@ class NavigationActivity : AppCompatActivity() {
 
     }
 
+
     private fun setRouteAndStartNavigation(
         routes: List<DirectionsRoute>,
         sourcePoint: Point,
         destinationPoint: Point
     ) {
 
-
+        NAVIGATION_IN_PROGRESS = true
         mapboxNavigation.setNavigationRoutes(routes.toNavigationRoutes())
 
         startSimulation(routes.first())
+
+        val pathUtil = PathUtils()
+        pathUtil.modelIntermediateRoute(
+            routes,
+            this,
+            resources.getString(R.string.mapbox_access_token)
+        )
+
+        pathUtil.ELEVATION_STATUS.observe(this, Observer { elevationCompleted ->
+            if (elevationCompleted == true) {
+
+                mtbExtraLims.visibility = View.VISIBLE
+
+                mtbExtraLims.text = resources.getString(
+                    R.string.profileparams,
+                    "${pathUtil.maneuverStatistics + pathUtil.elevationStatistics}"
+                )
+
+                pathUtil.ELEVATION_STATUS.value = false
+            }
+        })
 
 
         /** show UI elements*/
@@ -1587,7 +1619,6 @@ class NavigationActivity : AppCompatActivity() {
         findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).visibility =
             View.VISIBLE
         findViewById<CardView>(R.id.tripProgressCard).visibility = View.VISIBLE
-
         /** move the camera to overview when new route is available */
         navigationCamera.requestNavigationCameraToOverview()
 
@@ -1683,6 +1714,7 @@ class NavigationActivity : AppCompatActivity() {
         findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).visibility =
             View.INVISIBLE
         findViewById<CardView>(R.id.tripProgressCard).visibility = View.INVISIBLE
+        mtbExtraLims.visibility = View.GONE
 
         currentPoint = null
         currentFeatures = null
@@ -1692,6 +1724,7 @@ class NavigationActivity : AppCompatActivity() {
         contourFeatures = mutableListOf<FeatureCollection>()
 
         clearRoute()
+        NAVIGATION_IN_PROGRESS = false
 
     }
 
