@@ -71,6 +71,7 @@ dependencies {
     implementation "com.mapbox.search:mapbox-search-android-ui:1.0.0-beta.34"
     implementation "com.mapbox.navigation:ui-dropin:2.6.0"
     implementation "com.mapbox.navigation:android:2.6.0"
+    implementation "com.mapbox.mapboxsdk:mapbox-android-navigation:0.42.6"
 
     //Turf
     implementation 'com.mapbox.mapboxsdk:mapbox-sdk-turf:6.4.0'
@@ -126,6 +127,7 @@ dependencies {
     implementation "com.mapbox.vision:mapbox-android-vision:0.13.0"
     implementation "com.mapbox.vision:mapbox-android-vision-ar:0.13.0"
     implementation "com.mapbox.vision:mapbox-android-vision-safety:0.13.0"
+
 
 }
 

@@ -28,14 +28,20 @@ import com.example.ecoroute.utils.LocationPermissionHelper
 import com.example.ecoroute.utils.MapUtils
 import com.example.ecoroute.utils.MapUtils.MAXIMUM_CHARGE
 import com.example.ecoroute.utils.MapUtils.MAXIMUM_NODES
+import com.example.ecoroute.utils.MapUtils.buildStepPointsFromGeometry
 import com.example.ecoroute.utils.MapUtils.compareByHeuristic
 import com.example.ecoroute.utils.MapUtils.eucledianDistance
+import com.example.ecoroute.utils.MapUtils.mapToManeuverType
 import com.example.ecoroute.utils.PathUtils
 import com.example.ecoroute.utils.UiUtils
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
+import com.mapbox.android.core.location.LocationEngineCallback
+import com.mapbox.android.core.location.LocationEngineProvider
+import com.mapbox.android.core.location.LocationEngineRequest
+import com.mapbox.android.core.location.LocationEngineResult
 import com.mapbox.api.directions.v5.models.Bearing
 import com.mapbox.api.directions.v5.models.DirectionsRoute
 import com.mapbox.api.directions.v5.models.RouteOptions
@@ -127,6 +133,15 @@ import com.mapbox.search.ui.view.CommonSearchViewConfiguration
 import com.mapbox.search.ui.view.DistanceUnitType
 import com.mapbox.search.ui.view.SearchResultsView
 import com.mapbox.turf.TurfJoins
+import com.mapbox.vision.VisionManager
+import com.mapbox.vision.ar.VisionArManager
+import com.mapbox.vision.ar.core.models.Route
+import com.mapbox.vision.ar.core.models.RoutePoint
+import com.mapbox.vision.ar.view.gl.VisionArView
+import com.mapbox.vision.mobile.core.interfaces.VisionEventsListener
+import com.mapbox.vision.mobile.core.models.position.GeoCoordinate
+import com.mapbox.vision.utils.VisionLogger
+import kotlinx.android.synthetic.main.activity_ar_navigation.*
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -137,8 +152,41 @@ import java.lang.ref.WeakReference
 import java.util.*
 import kotlin.properties.Delegates
 
-
+@SuppressLint("LogNotTimber")
 class NavigationActivity : AppCompatActivity() {
+
+
+    /**
+     * AR Variables
+     */
+
+    private lateinit var mapboxArView: VisionArView
+    private var visionManagerWasInit = false
+    private var navigationWasStarted = false
+
+    private val arLocationEngine by lazy {
+        LocationEngineProvider.getBestLocationEngine(this)
+    }
+
+    private val arLocationEngineRequest by lazy {
+        LocationEngineRequest.Builder(0)
+            .setPriority(LocationEngineRequest.PRIORITY_HIGH_ACCURACY)
+            .setFastestInterval(1000)
+            .build()
+    }
+
+    private val locationCallback by lazy {
+        object : LocationEngineCallback<LocationEngineResult> {
+            override fun onSuccess(result: LocationEngineResult?) {}
+
+            override fun onFailure(exception: Exception) {}
+        }
+    }
+
+    private fun setArRenderOptions(visionArView: VisionArView) {
+        // enable fence rendering
+        visionArView.setFenceVisible(true)
+    }
 
 
     private var NAVIGATION_IN_PROGRESS = false
@@ -162,6 +210,7 @@ class NavigationActivity : AppCompatActivity() {
 
     private lateinit var fabNavigate: FloatingActionButton
     lateinit var mtbExtraLims: MaterialButton
+    private lateinit var mtbRemainingCharge: MaterialButton
 
     private lateinit var etDestination: TextInputEditText
     private lateinit var searchResultView: SearchResultsView
@@ -398,6 +447,7 @@ class NavigationActivity : AppCompatActivity() {
 
         mapView = findViewById(R.id.mapView)
         mapboxMap = mapView.getMapboxMap()
+        mapboxArView = findViewById(R.id.mapbox_ar_view)
 
         sv = findViewById(R.id.sv_details)
         tv = findViewById(R.id.tv_details)
@@ -405,6 +455,7 @@ class NavigationActivity : AppCompatActivity() {
         csl_view = findViewById(R.id.csl_navigation)
         fabNavigate = findViewById(R.id.fab_navigate)
         mtbExtraLims = findViewById(R.id.mtb_extralims)
+        mtbRemainingCharge = findViewById(R.id.mtb_remaining_Charge)
 
         locationPermissionHelper = LocationPermissionHelper(WeakReference(this))
         locationPermissionHelper.checkPermissions {
@@ -779,7 +830,29 @@ class NavigationActivity : AppCompatActivity() {
         }
 
         initateSearchEngine()
+
+        initiateAR()
+
         mapboxNavigation.startTripSession()
+
+
+    }
+
+
+    private fun initiateAR() {
+
+        try {
+            arLocationEngine.requestLocationUpdates(
+                arLocationEngineRequest,
+                locationCallback,
+                mainLooper
+            )
+
+
+        } catch (se: SecurityException) {
+            VisionLogger.e(ASTAR, se.toString())
+            Log.e(ASTAR, "Security exception with AR. ${se.message} and cause = ${se.cause}")
+        }
 
 
     }
@@ -788,16 +861,17 @@ class NavigationActivity : AppCompatActivity() {
         searchEngine =
             MapboxSearchSdk.createSearchEngine(SearchEngineSettings(resources.getString(R.string.mapbox_access_token)))
 
-
     }
 
     private fun astarInitiate(originPoint: Point, destinationPoint: Point, style: Style) {
         clearRoute()
         val soc = if (initialSOC != null) {
+            Log.e(ASTAR, "Initial SOC: " + initialSOC)
             MapUtils.convertChargeToSOC(initialSOC!!)
         } else {
             MAXIMUM_CHARGE
         }
+
         radius = 1.5 * eucledianDistance(originPoint, destinationPoint)
         center = MapUtils.getCenter(originPoint, destinationPoint)
         Log.e(ASTAR, "Radius = $radius and center = $center")
@@ -841,7 +915,6 @@ class NavigationActivity : AppCompatActivity() {
                         //For this unvisited node
                         currentNode.features = mReponse
                         nodeMap.add(currentNode.node_point)
-                        priorityQueue.remove()
 
                         makeContour(
                             style,
@@ -1622,6 +1695,8 @@ class NavigationActivity : AppCompatActivity() {
         /** move the camera to overview when new route is available */
         navigationCamera.requestNavigationCameraToOverview()
 
+        val route = routes.first()
+        startVisionManager(route)
 
     }
 
@@ -1726,6 +1801,9 @@ class NavigationActivity : AppCompatActivity() {
         clearRoute()
         NAVIGATION_IN_PROGRESS = false
 
+        //Stop VisioManager
+        stopVisionManager()
+
     }
 
     private fun startSimulation(route: DirectionsRoute) {
@@ -1758,6 +1836,7 @@ class NavigationActivity : AppCompatActivity() {
     }
 
     private fun clearRoute() {
+
         clearObservers()
         priorityQueue.clear()
         nodeMap.clear()
@@ -1819,6 +1898,86 @@ class NavigationActivity : AppCompatActivity() {
             return ContextCompat.checkSelfPermission(
                 this, permission
             ) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+
+    private fun DirectionsRoute.getRoutePoints(): Array<RoutePoint> {
+        val routePoints = arrayListOf<RoutePoint>()
+        legs()?.forEach { leg ->
+            leg.steps()?.forEach { step ->
+                val maneuverPoint = RoutePoint(
+                    GeoCoordinate(
+                        latitude = step.maneuver().location().latitude(),
+                        longitude = step.maneuver().location().longitude()
+                    ),
+                    step.maneuver().type().mapToManeuverType()
+                )
+                routePoints.add(maneuverPoint)
+
+                step.geometry()
+                    ?.buildStepPointsFromGeometry()
+                    ?.map { geometryStep ->
+                        RoutePoint(
+                            GeoCoordinate(
+                                latitude = geometryStep.latitude(),
+                                longitude = geometryStep.longitude()
+                            )
+                        )
+                    }
+                    ?.let { stepPoints ->
+                        routePoints.addAll(stepPoints)
+                    }
+            }
+        }
+
+        return routePoints.toTypedArray()
+    }
+
+
+    private fun startVisionManager(route: DirectionsRoute) {
+
+        try {
+            if (!visionManagerWasInit) {
+                // Create and start VisionManager.
+                VisionManager.create()
+
+                VisionManager.start()
+                VisionManager.visionEventsListener = object : VisionEventsListener {}
+
+
+                VisionArManager.create(VisionManager)
+
+                mapboxArView.setArManager(VisionArManager)
+                setArRenderOptions(mapboxArView)
+
+                visionManagerWasInit = true
+
+                VisionArManager.setRoute(
+                    Route(
+                        route.getRoutePoints(),
+                        route.duration().toFloat(),
+                        "POUN-START",
+                    )
+                )
+
+                mapboxArView.visibility = View.VISIBLE
+                mapView.visibility = View.GONE
+
+
+            }
+        } catch (e: java.lang.Exception) {
+            Log.e(ASTAR, "Exception in starting AR manager ${e.cause} and ${e.message}")
+        }
+
+    }
+
+    private fun stopVisionManager() {
+        if (visionManagerWasInit) {
+            VisionArManager.destroy()
+            VisionManager.stop()
+            VisionManager.destroy()
+            visionManagerWasInit = false
         }
     }
 

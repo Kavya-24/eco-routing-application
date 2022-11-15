@@ -1,16 +1,17 @@
 package com.example.ecoroute.utils
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import com.example.ecoroute.utils.MapUtils.ALPHA
+import com.example.ecoroute.utils.MapUtils.buildStepPointsFromGeometry
+import com.example.ecoroute.utils.MapUtils.mapToManeuverType
 import com.mapbox.api.directions.v5.models.DirectionsRoute
 import com.mapbox.api.tilequery.MapboxTilequery
-import com.mapbox.core.constants.Constants
 import com.mapbox.geojson.Feature
 import com.mapbox.geojson.FeatureCollection
 import com.mapbox.geojson.Point
-import com.mapbox.geojson.utils.PolylineUtils
 import com.mapbox.vision.ar.core.models.ManeuverType
 import com.mapbox.vision.ar.core.models.RoutePoint
 import com.mapbox.vision.mobile.core.models.position.GeoCoordinate
@@ -18,6 +19,7 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
+@SuppressLint("LogNotTimber")
 class PathUtils {
 
 
@@ -43,7 +45,7 @@ class PathUtils {
     }
 
 
-    private fun DirectionsRoute.getRoutePoints() {
+    fun DirectionsRoute.getRoutePoints() {
 
 
         legs()?.forEach { leg ->
@@ -93,29 +95,6 @@ class PathUtils {
 
     }
 
-    private fun String.buildStepPointsFromGeometry(): List<Point> {
-        return PolylineUtils.decode(this, Constants.PRECISION_6)
-    }
-
-    private fun String?.mapToManeuverType(): ManeuverType = when (this) {
-        "turn" -> ManeuverType.Turn
-        "depart" -> ManeuverType.Depart
-        "arrive" -> ManeuverType.Arrive
-        "merge" -> ManeuverType.Merge
-        "on ramp" -> ManeuverType.OnRamp
-        "off ramp" -> ManeuverType.OffRamp
-        "fork" -> ManeuverType.Fork
-        "roundabout" -> ManeuverType.Roundabout
-        "exit roundabout" -> ManeuverType.RoundaboutExit
-        "end of road" -> ManeuverType.EndOfRoad
-        "new name" -> ManeuverType.NewName
-        "continue" -> ManeuverType.Continue
-        "rotary" -> ManeuverType.Rotary
-        "roundabout turn" -> ManeuverType.RoundaboutTurn
-        "notification" -> ManeuverType.Notification
-        "exit rotary" -> ManeuverType.RoundaboutExit
-        else -> ManeuverType.None
-    }
 
     private fun ManeuverType.mapToCostFactors(): Double = when (this) {
         ManeuverType.Turn -> -0.1

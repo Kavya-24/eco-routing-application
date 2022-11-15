@@ -5,7 +5,6 @@ import android.location.Location
 import android.util.Log
 import com.example.ecoroute.models.astar.Node
 import com.mapbox.api.directions.v5.models.Bearing
-import com.mapbox.api.directions.v5.models.DirectionsRoute
 import com.mapbox.core.constants.Constants
 import com.mapbox.geojson.Feature
 import com.mapbox.geojson.Point
@@ -14,8 +13,6 @@ import com.mapbox.geojson.utils.PolylineUtils
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.turf.TurfMeasurement
 import com.mapbox.vision.ar.core.models.ManeuverType
-import com.mapbox.vision.ar.core.models.RoutePoint
-import com.mapbox.vision.mobile.core.models.position.GeoCoordinate
 import java.lang.Double.max
 import java.lang.Double.min
 
@@ -134,5 +131,28 @@ object MapUtils {
         return TurfMeasurement.distance(p1, p2)
     }
 
+    fun String?.mapToManeuverType(): ManeuverType = when (this) {
+        "turn" -> ManeuverType.Turn
+        "depart" -> ManeuverType.Depart
+        "arrive" -> ManeuverType.Arrive
+        "merge" -> ManeuverType.Merge
+        "on ramp" -> ManeuverType.OnRamp
+        "off ramp" -> ManeuverType.OffRamp
+        "fork" -> ManeuverType.Fork
+        "roundabout" -> ManeuverType.Roundabout
+        "exit roundabout" -> ManeuverType.RoundaboutExit
+        "end of road" -> ManeuverType.EndOfRoad
+        "new name" -> ManeuverType.NewName
+        "continue" -> ManeuverType.Continue
+        "rotary" -> ManeuverType.Rotary
+        "roundabout turn" -> ManeuverType.RoundaboutTurn
+        "notification" -> ManeuverType.Notification
+        "exit rotary" -> ManeuverType.RoundaboutExit
+        else -> ManeuverType.None
+    }
+
+    fun String.buildStepPointsFromGeometry(): List<Point> {
+        return PolylineUtils.decode(this, Constants.PRECISION_6)
+    }
 
 }
