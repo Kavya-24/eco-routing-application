@@ -26,6 +26,10 @@ import com.example.ecoroute.models.astar.Node
 import com.example.ecoroute.models.responses.GeoCodedQueryResponse
 import com.example.ecoroute.utils.LocationPermissionHelper
 import com.example.ecoroute.utils.MapUtils
+import com.example.ecoroute.utils.MapUtils.CAR_AGE_THETA
+import com.example.ecoroute.utils.MapUtils.CAR_FORD_THETA
+import com.example.ecoroute.utils.MapUtils.CAR_PASSENGER_THETA
+import com.example.ecoroute.utils.MapUtils.CAR_TESLA_THETA
 import com.example.ecoroute.utils.MapUtils.MAXIMUM_CHARGE
 import com.example.ecoroute.utils.MapUtils.MAXIMUM_NODES
 import com.example.ecoroute.utils.MapUtils.buildStepPointsFromGeometry
@@ -218,6 +222,13 @@ class NavigationActivity : AppCompatActivity() {
     private lateinit var tvCharging: TextView
     private var destinationSearchPoint: Point? = null
     private var initialSOC: Double? = null
+
+    //Vehicle Profile
+    private var CAR_TYPE = "Tesla"
+    private var CAR_AGE = 5
+    private var CAR_PASSENGER = 1
+    private var VEHICLE_PROFILE = 0.0
+
     private var MAP_READY = false
     private val viewmodel: NavigationViewModel by viewModels()
     private var times = 0
@@ -500,6 +511,7 @@ class NavigationActivity : AppCompatActivity() {
         addQueryListeners(originPoint)
 
 
+
         chargingSlider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
             override fun onStartTrackingTouch(slider: Slider) {
 
@@ -513,7 +525,23 @@ class NavigationActivity : AppCompatActivity() {
             }
         })
 
+
         d.setNegativeButton(resources.getString(R.string.go)) { _, _ ->
+            //Extract vehicle profile
+            if (v.findViewById<RadioButton>(R.id.rb_cartesla).isChecked) {
+                CAR_TYPE = resources.getString(R.string.tesla)
+            } else {
+                CAR_TYPE = resources.getString(R.string.ford)
+            }
+
+            if (!v.findViewById<EditText>(R.id.et_car_age).text.isNullOrBlank()) {
+                CAR_AGE = v.findViewById<EditText>(R.id.et_car_age).text.toString().toInt()
+            }
+            if (!v.findViewById<EditText>(R.id.et_passenger).text.isNullOrBlank()) {
+                CAR_PASSENGER = v.findViewById<EditText>(R.id.et_passenger).text.toString().toInt()
+            }
+
+
             if (destinationSearchPoint != null && !etDestination.text.isNullOrBlank()) {
                 astarInitiate(originPoint, destinationSearchPoint!!, style)
             }
@@ -655,9 +683,10 @@ class NavigationActivity : AppCompatActivity() {
 
 
                     mapView.gestures.addOnMapClickListener {
-                        if (!NAVIGATION_IN_PROGRESS) {
-                            astarInitiate(originPoint, it, style)
-                        }
+//                        if (!NAVIGATION_IN_PROGRESS) {
+//                            astarInitiate(originPoint, it, style)
+//                        }
+                        //Do nothing when touched up
                         true
                     }
 
@@ -875,6 +904,16 @@ class NavigationActivity : AppCompatActivity() {
         radius = 1.5 * eucledianDistance(originPoint, destinationPoint)
         center = MapUtils.getCenter(originPoint, destinationPoint)
         Log.e(ASTAR, "Radius = $radius and center = $center")
+
+        /**Vehicle Profile*/
+        VEHICLE_PROFILE = CAR_AGE * CAR_AGE_THETA + CAR_PASSENGER * CAR_PASSENGER_THETA
+        if (CAR_TYPE == "Tesla") {
+            VEHICLE_PROFILE += CAR_TESLA_THETA
+        } else {
+            VEHICLE_PROFILE += CAR_FORD_THETA
+        }
+
+        Log.e(ASTAR, "Car type = $CAR_TYPE and car age = $CAR_AGE and passengers = $CAR_PASSENGER")
 
         val currentNode =
             Node(originPoint, 0.0, eucledianDistance(originPoint, destinationPoint), soc, null)
@@ -1654,6 +1693,7 @@ class NavigationActivity : AppCompatActivity() {
     }
 
 
+    @SuppressLint("SetTextI18n")
     private fun setRouteAndStartNavigation(
         routes: List<DirectionsRoute>,
         sourcePoint: Point,
@@ -1680,7 +1720,7 @@ class NavigationActivity : AppCompatActivity() {
                 mtbExtraLims.text = resources.getString(
                     R.string.profileparams,
                     "${pathUtil.maneuverStatistics + pathUtil.elevationStatistics}"
-                )
+                ) + "\n+$VEHICLE_PROFILE"
 
                 pathUtil.ELEVATION_STATUS.value = false
             }
@@ -1774,6 +1814,7 @@ class NavigationActivity : AppCompatActivity() {
         speechApi.cancel()
         voiceInstructionsPlayer.shutdown()
         MAP_READY = false
+        VEHICLE_PROFILE = 0.0
     }
 
     private fun clearRouteAndStopNavigation() {
@@ -1845,6 +1886,7 @@ class NavigationActivity : AppCompatActivity() {
         outputLog = ""
         elevationMap.clear()
         close_list_points.clear()
+
     }
 
     private fun clearElevationObserver() {

@@ -73,23 +73,107 @@
             app:tickColor="@color/colorAccent"
             app:trackColorActive="@color/colorGreen" />
 
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/csl_carType"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
+            android:padding="@dimen/space"
+            app:layout_constraintTop_toBottomOf="@id/navigation_sliderEvCharge">
 
-<!--        <com.google.android.material.button.MaterialButton-->
-<!--            android:id="@+id/navigation_mtbStartSearch"-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:layout_marginTop="@dimen/space_3x"-->
-<!--            android:layout_marginBottom="@dimen/space_3x"-->
-<!--            android:text="@string/go"-->
-<!--            android:textColor="@color/colorWhite"-->
-<!--            android:textStyle="bold"-->
-<!--            app:backgroundTint="@color/colorAccent"-->
-<!--            app:icon="@drawable/ic_baseline_directions_24"-->
-<!--            app:iconGravity="textEnd"-->
-<!--            app:iconSize="@dimen/space_4x"-->
-<!--            app:layout_constraintEnd_toEndOf="parent"-->
-<!--            app:layout_constraintStart_toStartOf="parent"-->
-<!--            app:layout_constraintTop_toBottomOf="@id/navigation_sliderEvCharge" />-->
+            <TextView
+                android:id="@+id/tv_car_type"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/car_type"
+                android:textSize="16sp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <RadioGroup
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:layout_constraintTop_toBottomOf="@id/tv_car_type">
+
+                <RadioButton
+                    android:id="@+id/rb_cartesla"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="@string/tesla" />
+
+                <RadioButton
+                    android:id="@+id/rb_carford"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/ford" />
+            </RadioGroup>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <TextView
+            android:id="@+id/tv_car_age"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
+            android:padding="@dimen/space"
+            android:text="@string/car_age"
+            android:textSize="16sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/csl_carType" />
+
+        <EditText
+            android:id="@+id/et_car_age"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
+            android:hint="@string/_5"
+            android:inputType="number"
+            android:padding="@dimen/space"
+            app:layout_constraintBottom_toBottomOf="@id/tv_car_age"
+            app:layout_constraintStart_toEndOf="@id/tv_car_age"
+            app:layout_constraintTop_toTopOf="@id/tv_car_age" />
+
+        <TextView
+            android:id="@+id/tv_car_passengers"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
+            android:padding="@dimen/space"
+            android:text="@string/passengers"
+            android:textSize="16sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_car_age" />
+
+        <EditText
+            android:id="@+id/et_passenger"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
+            android:hint="@string/_1"
+            android:inputType="number"
+            android:padding="@dimen/space"
+            app:layout_constraintBottom_toBottomOf="@id/tv_car_passengers"
+            app:layout_constraintStart_toEndOf="@id/tv_car_passengers"
+            app:layout_constraintTop_toTopOf="@id/tv_car_passengers" />
+
+
+        <!--        <com.google.android.material.button.MaterialButton-->
+        <!--            android:id="@+id/navigation_mtbStartSearch"-->
+        <!--            android:layout_width="wrap_content"-->
+        <!--            android:layout_height="wrap_content"-->
+        <!--            android:layout_marginTop="@dimen/space_3x"-->
+        <!--            android:layout_marginBottom="@dimen/space_3x"-->
+        <!--            android:text="@string/go"-->
+        <!--            android:textColor="@color/colorWhite"-->
+        <!--            android:textStyle="bold"-->
+        <!--            app:backgroundTint="@color/colorAccent"-->
+        <!--            app:icon="@drawable/ic_baseline_directions_24"-->
+        <!--            app:iconGravity="textEnd"-->
+        <!--            app:iconSize="@dimen/space_4x"-->
+        <!--            app:layout_constraintEnd_toEndOf="parent"-->
+        <!--            app:layout_constraintStart_toStartOf="parent"-->
+        <!--            app:layout_constraintTop_toBottomOf="@id/navigation_sliderEvCharge" />-->
 
 
     </androidx.constraintlayout.widget.ConstraintLayout>

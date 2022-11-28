@@ -27,6 +27,11 @@ object MapUtils {
     val ALPHA = -10
     val BETA = 10
 
+    val CAR_AGE_THETA = 1
+    val CAR_PASSENGER_THETA = 0.01
+    val CAR_TESLA_THETA = 0.025
+    val CAR_FORD_THETA = 0.020
+
     val compareByHeuristic: Comparator<Node> = compareBy { it.g_n + it.h_n }
     fun convertChargeToSOC(initialSOC: Double): Int {
         return (initialSOC * 0.6).toInt()

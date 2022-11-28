@@ -41,6 +41,13 @@
     <string name="profileparams">%s U</string>
     <string name="vision_not_supported_message">Vision AR is not supported</string>
     <string name="vision_not_supported_title">Vision AR not found</string>
+    <string name="car_age">Car Age (Years):</string>
+    <string name="passengers">Num. of People:</string>
+    <string name="_5">5</string>
+    <string name="_1">1</string>
+    <string name="car_type">Car Type</string>
+    <string name="tesla">Tesla</string>
+    <string name="ford">Ford</string>
 
 
 </resources>
