@@ -1,6 +1,5 @@
 package com.example.ecoroute.adapters
 
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,7 +10,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.ecoroute.R
 import com.example.ecoroute.models.EVCar
-import okhttp3.internal.notifyAll
 
 class EVCarsListAdapter(val itemClick: OnItemClickListener) :
     RecyclerView.Adapter<EVCarsListAdapter.MyViewHolder>() {
@@ -85,7 +83,7 @@ class EVCarsListAdapter(val itemClick: OnItemClickListener) :
 
         if (position == currentCarPosition) {
             holder.itemView.findViewById<CardView>(R.id.cv_car)
-                .setBackgroundColor(holder.itemView.resources.getColor(R.color.colorAccent))
+                .setBackgroundColor(holder.itemView.resources.getColor(R.color.colorPrimary))
         } else {
             holder.itemView.findViewById<CardView>(R.id.cv_car)
                 .setBackgroundColor(holder.itemView.resources.getColor(R.color.colorWhite))
@@ -94,7 +92,6 @@ class EVCarsListAdapter(val itemClick: OnItemClickListener) :
 
         holder.itemView.setOnClickListener {
             currentCarPosition = position
-            Log.e("ASTAR", "Current position now =  $position")
             notifyDataSetChanged()
         }
     }

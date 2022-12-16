@@ -390,7 +390,8 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
             }
 
             viewportDataSource.onRouteChanged(
-                routeUpdateResult.navigationRoutes.toDirectionsRoutes().first().toNavigationRoute()
+                routeUpdateResult.navigationRoutes.toDirectionsRoutes().first()
+                    .toNavigationRoute(routerOrigin)
             )
             viewportDataSource.evaluate()
         } else {
@@ -1185,7 +1186,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
                         Log.e(
                             ASTAR,
-                            "Failed Isochrone with currentPoint = ${currentNode.node_point.toString()} and message ${viewmodel.messageMapboxIsochrone.value.toString()}"
+                            "Failed Isochrone with currentPoint = ${currentNode.node_point} and message ${viewmodel.messageMapboxIsochrone.value.toString()}"
                         )
                     }
                 } else {
@@ -1253,7 +1254,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
                         Log.e(
                             ASTAR,
-                            "Failed Geocode with currentPoint = ${currentNode.node_point.toString()} and message ${viewmodel.messageGeocode.value.toString()}"
+                            "Failed Geocode with currentPoint = ${currentNode.node_point} and message ${viewmodel.messageGeocode.value.toString()}"
                         )
                     }
                 } else {
@@ -1313,7 +1314,6 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                     nextHeight = 0
 
 
-
                     eData = (nextHeight - currentHeight).toDouble()
                     p_gn = eucledianDistance(p, currentNode.node_point) + parent_gn + eData
                     p_hn = eucledianDistance(p, destinationNode.node_point!!)
@@ -1336,7 +1336,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                     childrenPrirorityQueue.peek()!!.node_point?.let { nodeMap.add(it) }
                     stationMap[childrenPrirorityQueue.peek()!!.node_point!!] = countIso
                     childrenPrirorityQueue.remove()
-                    cnt--;
+                    cnt--
                 }
 
             }
@@ -1344,22 +1344,6 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
     }
 
-    private fun processElevations(features: List<Feature>, t: Int): Int {
-        var f = 0
-        for (x in features) {
-            f += x.getStringProperty("ele").toInt()
-        }
-
-        if (t == 0) {
-            currentHeight = f / features.size
-
-        } else {
-            nextHeight = f / features.size
-        }
-
-        return f / features.size
-
-    }
 
     private fun astar_checkDestination(
         currentNode: Node,
@@ -1556,7 +1540,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
 
 
-        Log.e(ASTAR, "Directional API close_list  ${close_list_points.toString()}")
+        Log.e(ASTAR, "Directional API close_list  $close_list_points")
 
 
         mapboxNavigation.requestRoutes(
@@ -1587,7 +1571,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
                     Log.e(
                         ASTAR,
-                        "Failed Direction API because ${reasons.toString()}"
+                        "Failed Direction API because $reasons"
                     )
                     Toast.makeText(
                         this@NavigationActivity,
@@ -1614,7 +1598,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
     ) {
 
         NAVIGATION_IN_PROGRESS = true
-        mapboxNavigation.setNavigationRoutes(routes.toNavigationRoutes())
+        mapboxNavigation.setNavigationRoutes(routes.toNavigationRoutes(routerOrigin))
 
         startSimulation(routes.first())
 
@@ -1732,7 +1716,11 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
     private fun clearRouteAndStopNavigation() {
         /** clear*/
-        mapboxNavigation.setNavigationRoutes(listOf<DirectionsRoute>().toNavigationRoutes())
+        mapboxNavigation.setNavigationRoutes(
+            listOf<DirectionsRoute>().toNavigationRoutes(
+                routerOrigin
+            )
+        )
 
         /** stop simulation*/
         mapboxReplayer.stop()
