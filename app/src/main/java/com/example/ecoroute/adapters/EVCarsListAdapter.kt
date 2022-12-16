@@ -1,5 +1,6 @@
 package com.example.ecoroute.adapters
 
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,6 +11,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.ecoroute.R
 import com.example.ecoroute.models.EVCar
+import okhttp3.internal.notifyAll
 
 class EVCarsListAdapter(val itemClick: OnItemClickListener) :
     RecyclerView.Adapter<EVCarsListAdapter.MyViewHolder>() {
@@ -17,6 +19,7 @@ class EVCarsListAdapter(val itemClick: OnItemClickListener) :
 
     //Initialize an empty list of the dataclass T
     var lst: List<EVCar> = mutableListOf()
+    var currentCarPosition = 0
 
     class MyViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 
@@ -33,17 +36,23 @@ class EVCarsListAdapter(val itemClick: OnItemClickListener) :
                 evCarName.text = _listItem.carName
                 evCarDescription.text = itemView.context.getString(
                     R.string.recharges,
-                    _listItem.chargingSpeed.toString(),
+                    _listItem.carType.chargingSpeed.toString(),
                     _listItem.carType.plugType
                 )
 
-                if (_listItem.carImageUrl != null) {
-                    Glide.with(itemView.context)
-                        .load(_listItem.carImageUrl)
-                        .placeholder(R.drawable.ic_baseline_electric_car_24)
-                        .error(R.drawable.ic_baseline_electric_car_24).into(evCarImage);
 
-                }
+                val resID: Int = itemView.context.resources.getIdentifier(
+                    _listItem.carType.carImageUrl,
+                    "drawable",
+                    itemView.context.packageName
+                )
+
+                Glide.with(itemView.context)
+                    .load(
+                        itemView.context.resources.getDrawable(resID)
+                    )
+                    .placeholder(R.drawable.ic_baseline_electric_car_24)
+                    .error(R.drawable.ic_baseline_electric_car_24).into(evCarImage)
 
                 itemView.setOnClickListener {
                     itemClick.clickThisItem(_listItem)
@@ -74,6 +83,20 @@ class EVCarsListAdapter(val itemClick: OnItemClickListener) :
 
         holder.bindPost(lst[position], itemClick)
 
+        if (position == currentCarPosition) {
+            holder.itemView.findViewById<CardView>(R.id.cv_car)
+                .setBackgroundColor(holder.itemView.resources.getColor(R.color.colorAccent))
+        } else {
+            holder.itemView.findViewById<CardView>(R.id.cv_car)
+                .setBackgroundColor(holder.itemView.resources.getColor(R.color.colorWhite))
+        }
+
+
+        holder.itemView.setOnClickListener {
+            currentCarPosition = position
+            Log.e("ASTAR", "Current position now =  $position")
+            notifyDataSetChanged()
+        }
     }
 
 }

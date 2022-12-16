@@ -1,7 +1,6 @@
 package com.example.ecoroute.utils
 
 import com.example.ecoroute.models.EVCar
-import com.example.ecoroute.models.StreetStyle
 
 object InitOptions {
 
@@ -33,6 +32,44 @@ object InitOptions {
     //Time for nodes can be anywhere between 1-10 minutes = 60 to 600 s
     private fun getRandomTimeMappings(): Double {
         return (60..120).random().toDouble()
+    }
+
+
+    //Get the EV Car List with some default values
+    fun getEVCarsList(): MutableList<EVCar> {
+
+        val cars = mutableListOf<EVCar>()
+
+
+        cars.add(
+            EVCar(
+                0, "Tesla", "1", EVCar.CarType(plugType = "A", 1, "tesla", chargingSpeed = 90.0)
+            )
+        )
+
+        cars.add(
+            EVCar(
+                1, "Ola", "1", EVCar.CarType(plugType = "A", 2, "ola", chargingSpeed = 80.0)
+            )
+        )
+
+
+        cars.add(
+            EVCar(
+                2, "Altroz", "1", EVCar.CarType(plugType = "B", 4, "altroz", chargingSpeed = 100.0)
+            )
+        )
+
+
+        cars.add(
+            EVCar(
+                3, "Honda", "1", EVCar.CarType(plugType = "C", 3, "honda", chargingSpeed = 70.0)
+            )
+        )
+
+
+
+        return cars
     }
 
 

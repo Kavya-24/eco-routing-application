@@ -5,7 +5,7 @@
     <string name="title_notifications">Notifications</string>
     <string name="choose_start_location">Choose start location</string>
     <string name="choose_dst_location">Choose destination</string>
-    <string name="recharges">Recharges in %s h. Plug Type: %s</string>
+    <string name="recharges">SOC: %s. Plug Type: %s</string>
     <string name="select_car">Select Car</string>
     <string name="charge_slider_desc">Input the initial charge of the car</string>
     <string name="go">GO</string>
@@ -48,6 +48,12 @@
     <string name="car_type">Car Type</string>
     <string name="tesla">Tesla</string>
     <string name="ford">Ford</string>
+    <string name="add_car">ADD CAR</string>
+    <string name="cancel">CANCEL</string>
+    <string name="charging_speed">Charging Speed</string>
+    <string name="car_plug_type">Car Plug Type</string>
+    <string name="choose_source">Choose Starting Point</string>
+    <string name="select_car_type">Select Car Type</string>
 
 
 </resources>

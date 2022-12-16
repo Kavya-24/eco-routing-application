@@ -20,24 +20,24 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.ecoroute.R
+import com.example.ecoroute.adapters.EVCarsListAdapter
+import com.example.ecoroute.adapters.OnItemClickListener
 import com.example.ecoroute.models.DLSState
+import com.example.ecoroute.models.EVCar
 import com.example.ecoroute.models.astar.Node
 import com.example.ecoroute.models.responses.GeoCodedQueryResponse
-import com.example.ecoroute.utils.LocationPermissionHelper
-import com.example.ecoroute.utils.MapUtils
+import com.example.ecoroute.utils.*
 import com.example.ecoroute.utils.MapUtils.CAR_AGE_THETA
-import com.example.ecoroute.utils.MapUtils.CAR_FORD_THETA
 import com.example.ecoroute.utils.MapUtils.CAR_PASSENGER_THETA
-import com.example.ecoroute.utils.MapUtils.CAR_TESLA_THETA
 import com.example.ecoroute.utils.MapUtils.MAXIMUM_CHARGE
 import com.example.ecoroute.utils.MapUtils.MAXIMUM_NODES
 import com.example.ecoroute.utils.MapUtils.buildStepPointsFromGeometry
 import com.example.ecoroute.utils.MapUtils.compareByHeuristic
 import com.example.ecoroute.utils.MapUtils.eucledianDistance
 import com.example.ecoroute.utils.MapUtils.mapToManeuverType
-import com.example.ecoroute.utils.PathUtils
-import com.example.ecoroute.utils.UiUtils
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.slider.Slider
@@ -145,12 +145,13 @@ import com.mapbox.vision.mobile.core.interfaces.VisionEventsListener
 import com.mapbox.vision.mobile.core.models.position.GeoCoordinate
 import com.mapbox.vision.utils.VisionLogger
 import kotlinx.android.synthetic.main.activity_ar_navigation.*
+import kotlinx.android.synthetic.main.navigation_search.*
 import java.lang.ref.WeakReference
 import java.util.*
 import kotlin.properties.Delegates
 
 @SuppressLint("LogNotTimber")
-class NavigationActivity : AppCompatActivity() {
+class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
 
     /**
@@ -209,18 +210,35 @@ class NavigationActivity : AppCompatActivity() {
     lateinit var mtbExtraLims: MaterialButton
     private lateinit var mtbRemainingCharge: MaterialButton
 
+    private lateinit var etSource: TextInputEditText
+    private lateinit var sourceSearchResultView: SearchResultsView
+
     private lateinit var etDestination: TextInputEditText
-    private lateinit var searchResultView: SearchResultsView
+    private lateinit var destinationSearchResultView: SearchResultsView
+
     private lateinit var chargingSlider: Slider
     private lateinit var tvCharging: TextView
+
+    private var sourceSearchPoint: Point? = null
     private var destinationSearchPoint: Point? = null
     private var initialSOC: Double? = null
 
+    private lateinit var rvcars: RecyclerView
+    private lateinit var mtbaddcar: MaterialButton
+    private lateinit var evcartypeadapter: EVCarsListAdapter
+
     //Vehicle Profile
-    private var CAR_TYPE = "Tesla"
-    private var CAR_AGE = 5
+    private val pref = PreferenceUtil
     private var CAR_PASSENGER = 1
     private var VEHICLE_PROFILE = 0.0
+
+    private lateinit var rvcartypes: RecyclerView
+    private lateinit var etCarAge: EditText
+    private lateinit var etCarPlugType: EditText
+    private lateinit var etCarChargingSpeed: EditText
+    private lateinit var CAR_TYPE_IDX: EVCar
+    private var CAR_IDX: EVCar? = null
+
 
     private var MAP_READY = false
     private val viewmodel: NavigationViewModel by viewModels()
@@ -487,23 +505,72 @@ class NavigationActivity : AppCompatActivity() {
 
     }
 
+
     @SuppressLint("StringFormatInvalid", "SetTextI18n")
     private fun createDialog(originPoint: Point, style: Style) {
         val d = AlertDialog.Builder(this)
         val v = layoutInflater.inflate(R.layout.navigation_search, null)
         d.setView(v)
 
+        etSource = v.findViewById(R.id.navigation_query_ui_source_location)
         etDestination = v.findViewById(R.id.navigation_query_ui_destination_location)
+
         chargingSlider = v.findViewById(R.id.navigation_sliderEvCharge)
-        searchResultView = v.findViewById(R.id.navigation_search_results_view)
+
+        sourceSearchResultView =
+            v.findViewById(R.id.navigation_search_results_view_source)
+        destinationSearchResultView =
+            v.findViewById(R.id.navigation_search_results_view_destination)
+
         tvCharging = v.findViewById(R.id.navigation_tvCharging)
 
         tvCharging.text = resources.getString(R.string.charging) + " 20.0%"
-        setUpSearchResultView(originPoint)
-        addSearchResultViewListeners(originPoint)
-        addQueryListeners(originPoint)
 
 
+        rvcars = v.findViewById(R.id.rv_evcars)
+        mtbaddcar = v.findViewById(R.id.mtbAddCar)
+
+
+        //Search Fields
+        setUpSearchResultView()
+        addSearchResultViewListeners()
+        addQueryListeners()
+
+
+        loadCars()
+        mtbaddcar.setOnClickListener {
+
+            mtbaddcar.visibility = View.GONE
+            rvcars.visibility = View.GONE
+
+
+            //Show the csl
+            val csl = v.findViewById<ConstraintLayout>(R.id.csl_add_car)
+            csl.visibility = View.VISIBLE
+
+            rvcartypes = v.findViewById(R.id.rv_addcars)
+            etCarAge = v.findViewById(R.id.et_carage)
+            etCarPlugType = v.findViewById(R.id.et_carplug)
+            etCarChargingSpeed = v.findViewById(R.id.et_carchargingspeed)
+
+            loadCarTypes()
+
+            v.findViewById<MaterialButton>(R.id.mtb_cancel_add_car).setOnClickListener {
+                csl.visibility = View.GONE
+                mtbaddcar.visibility = View.VISIBLE
+                rvcars.visibility = View.VISIBLE
+            }
+
+            v.findViewById<MaterialButton>(R.id.mtb_check_add_car).setOnClickListener {
+                addEVCar()
+                csl.visibility = View.GONE
+                mtbaddcar.visibility = View.VISIBLE
+                rvcars.visibility = View.VISIBLE
+                loadCars()
+            }
+
+
+        }
 
         chargingSlider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
             override fun onStartTrackingTouch(slider: Slider) {
@@ -520,23 +587,29 @@ class NavigationActivity : AppCompatActivity() {
 
 
         d.setNegativeButton(resources.getString(R.string.go)) { _, _ ->
-            //Extract vehicle profile
-            if (v.findViewById<RadioButton>(R.id.rb_cartesla).isChecked) {
-                CAR_TYPE = resources.getString(R.string.tesla)
-            } else {
-                CAR_TYPE = resources.getString(R.string.ford)
-            }
 
-            if (!v.findViewById<EditText>(R.id.et_car_age).text.isNullOrBlank()) {
-                CAR_AGE = v.findViewById<EditText>(R.id.et_car_age).text.toString().toInt()
-            }
             if (!v.findViewById<EditText>(R.id.et_passenger).text.isNullOrBlank()) {
                 CAR_PASSENGER = v.findViewById<EditText>(R.id.et_passenger).text.toString().toInt()
             }
 
 
+            //No new car added or selected
+            if (CAR_IDX == null) {
+                Toast.makeText(this, "No car added", Toast.LENGTH_SHORT).show()
+            } else if (destinationSearchPoint == null) {
+                Toast.makeText(this, "Destination Location not defined", Toast.LENGTH_SHORT).show()
+            }
+
+            if (sourceSearchPoint == null) {
+                Toast.makeText(
+                    this,
+                    "Source Location not defined. Using current location",
+                    Toast.LENGTH_SHORT
+                ).show()
+                sourceSearchPoint = originPoint
+            }
             if (destinationSearchPoint != null && !etDestination.text.isNullOrBlank()) {
-                astarInitiate(originPoint, destinationSearchPoint!!, style)
+                astarInitiate(sourceSearchPoint!!, destinationSearchPoint!!, style)
             }
         }
 
@@ -544,19 +617,100 @@ class NavigationActivity : AppCompatActivity() {
         d.show()
     }
 
-    private fun addQueryListeners(originPoint: Point) {
-        etDestination.addTextChangedListener(object : TextWatcher {
+
+    private fun addEVCar() {
+
+        val evCar = InitOptions.getEVCarsList()[evcartypeadapter.currentCarPosition]
+        if (!etCarAge.text.isNullOrBlank()) {
+            evCar.carAge = etCarAge.text.toString()
+        }
+
+        if (!etCarPlugType.text.isNullOrBlank()) {
+            evCar.carType.plugType = etCarPlugType.text.toString()
+        }
+
+        if (!etCarChargingSpeed.text.isNullOrBlank()) {
+            evCar.carType.chargingSpeed = etCarChargingSpeed.text.toString().toDouble()
+        }
+
+        pref.setCarsInPreference(evCar)
+
+        CAR_IDX = evCar
+        Log.e(ASTAR, "CAR IDX = $CAR_IDX")
+
+    }
+
+    private fun loadCars() {
+        //Get the cars from Preference Util
+        val evcars = pref.getCarsFromPreference()
+        val evcaradapter = EVCarsListAdapter(this)
+        evcaradapter.lst = evcars
+
+        evcaradapter.currentCarPosition = if (pref._lastUsedCarIndex != "") {
+            pref._lastUsedCarIndex!!.toInt()
+        } else {
+            0
+        }
+
+        rvcars.layoutManager = LinearLayoutManager(ApplicationUtils.getContext())
+        rvcars.adapter = evcaradapter
+
+        if (evcars.size > 0) {
+            CAR_IDX = evcars[evcaradapter.currentCarPosition]
+        }
+
+    }
+
+    private fun loadCarTypes() {
+
+        val evcars = InitOptions.getEVCarsList()
+        evcartypeadapter = EVCarsListAdapter(this)
+        evcartypeadapter.lst = evcars
+        evcartypeadapter.currentCarPosition = 0
+        rvcartypes.layoutManager = LinearLayoutManager(ApplicationUtils.getContext())
+        rvcartypes.adapter = evcartypeadapter
+    }
+
+    override fun clickThisItem(_listItem: EVCar) {
+        Log.e(ASTAR, "Car Clicked")
+        CAR_TYPE_IDX = _listItem
+        CAR_IDX = _listItem
+    }
+
+    private fun addQueryListeners() {
+
+        etSource.addTextChangedListener(object : TextWatcher {
 
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, after: Int) {
                 if (!s.toString().isEmpty()) {
-                    searchResultView.search(s.toString())
+                    sourceSearchResultView.search(s.toString())
                 }
 
 
             }
 
             override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
-                searchResultView.visibility = View.VISIBLE
+                sourceSearchResultView.visibility = View.VISIBLE
+            }
+
+            override fun afterTextChanged(e: Editable) {
+
+
+            }
+        })
+
+        etDestination.addTextChangedListener(object : TextWatcher {
+
+            override fun onTextChanged(s: CharSequence, start: Int, before: Int, after: Int) {
+                if (!s.toString().isEmpty()) {
+                    destinationSearchResultView.search(s.toString())
+                }
+
+
+            }
+
+            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
+                destinationSearchResultView.visibility = View.VISIBLE
             }
 
             override fun afterTextChanged(e: Editable) {
@@ -566,26 +720,74 @@ class NavigationActivity : AppCompatActivity() {
         })
     }
 
-    private fun addSearchResultViewListeners(originPoint: Point) {
+    private fun addSearchResultViewListeners() {
 
-        searchResultView.addSearchListener(object : SearchResultsView.SearchListener {
 
-            private fun showToast(message: String) {
-                Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
+        sourceSearchResultView.addSearchListener(object : SearchResultsView.SearchListener {
+
+
+            override fun onHistoryItemClicked(historyRecord: HistoryRecord) {
+
+                etSource.setText(historyRecord.name.toString(), TextView.BufferType.EDITABLE)
+                sourceSearchPoint = historyRecord.coordinate
+                sourceSearchResultView.visibility = View.GONE
             }
+
+            override fun onSearchResult(searchResult: SearchResult, responseInfo: ResponseInfo) {
+                etSource.setText(searchResult.name.toString(), TextView.BufferType.EDITABLE)
+                sourceSearchPoint = searchResult.coordinate
+
+                sourceSearchResultView.visibility = View.GONE
+            }
+
+            override fun onPopulateQueryClicked(
+                suggestion: SearchSuggestion,
+                responseInfo: ResponseInfo
+            ) {
+
+            }
+
+            override fun onCategoryResult(
+                suggestion: SearchSuggestion,
+                results: List<SearchResult>,
+                responseInfo: ResponseInfo
+            ) {
+            }
+
+            override fun onError(e: Exception) {
+            }
+
+            override fun onFeedbackClicked(responseInfo: ResponseInfo) {
+            }
+
+            override fun onOfflineSearchResults(
+                results: List<SearchResult>,
+                responseInfo: ResponseInfo
+            ) {
+            }
+
+            override fun onSuggestions(
+                suggestions: List<SearchSuggestion>,
+                responseInfo: ResponseInfo
+            ) {
+            }
+        })
+
+        destinationSearchResultView.addSearchListener(object : SearchResultsView.SearchListener {
+
 
             override fun onHistoryItemClicked(historyRecord: HistoryRecord) {
 
                 etDestination.setText(historyRecord.name.toString(), TextView.BufferType.EDITABLE)
                 destinationSearchPoint = historyRecord.coordinate
-                searchResultView.visibility = View.GONE
+                destinationSearchResultView.visibility = View.GONE
             }
 
             override fun onSearchResult(searchResult: SearchResult, responseInfo: ResponseInfo) {
                 etDestination.setText(searchResult.name.toString(), TextView.BufferType.EDITABLE)
                 destinationSearchPoint = searchResult.coordinate
 
-                searchResultView.visibility = View.GONE
+                destinationSearchResultView.visibility = View.GONE
             }
 
             override fun onPopulateQueryClicked(
@@ -624,9 +826,17 @@ class NavigationActivity : AppCompatActivity() {
 
     }
 
-    private fun setUpSearchResultView(originPoint: Point) {
+    private fun setUpSearchResultView() {
         val accessToken = getString(R.string.mapbox_access_token)
-        searchResultView.initialize(
+
+        sourceSearchResultView.initialize(
+            SearchResultsView.Configuration(
+                commonConfiguration = CommonSearchViewConfiguration(DistanceUnitType.IMPERIAL),
+                searchEngineSettings = SearchEngineSettings(accessToken),
+                offlineSearchEngineSettings = OfflineSearchEngineSettings(accessToken)
+            )
+        )
+        destinationSearchResultView.initialize(
             SearchResultsView.Configuration(
                 commonConfiguration = CommonSearchViewConfiguration(DistanceUnitType.IMPERIAL),
                 searchEngineSettings = SearchEngineSettings(accessToken),
@@ -899,14 +1109,10 @@ class NavigationActivity : AppCompatActivity() {
         Log.e(ASTAR, "Radius = $radius and center = $center")
 
         /**Vehicle Profile*/
-        VEHICLE_PROFILE = CAR_AGE * CAR_AGE_THETA + CAR_PASSENGER * CAR_PASSENGER_THETA
-        if (CAR_TYPE == "Tesla") {
-            VEHICLE_PROFILE += CAR_TESLA_THETA
-        } else {
-            VEHICLE_PROFILE += CAR_FORD_THETA
-        }
+        VEHICLE_PROFILE =
+            CAR_IDX!!.carAge.toInt() * CAR_AGE_THETA + +CAR_IDX!!.carType.carEffectFactor + CAR_PASSENGER * CAR_PASSENGER_THETA
 
-        Log.e(ASTAR, "Car type = $CAR_TYPE and car age = $CAR_AGE and passengers = $CAR_PASSENGER")
+        Log.e(ASTAR, "Car type = $CAR_IDX and passengers = $CAR_PASSENGER")
 
         val currentNode =
             Node(originPoint, 0.0, eucledianDistance(originPoint, destinationPoint), soc, null)
@@ -1727,5 +1933,6 @@ class NavigationActivity : AppCompatActivity() {
             visionManagerWasInit = false
         }
     }
+
 
 }

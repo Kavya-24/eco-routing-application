@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/sv_navigation_search"
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
@@ -11,6 +12,38 @@
         android:layout_height="wrap_content"
         android:padding="@dimen/space">
 
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/navigation_frame_source_location"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
+            android:padding="@dimen/space"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/navigation_til_query_ui_source_location"
+                style="@style/ThemeOverlay.Material3.TextInputEditText.OutlinedBox.Dense"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/navigation_query_ui_source_location"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:hint="@string/choose_source" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.mapbox.search.ui.view.SearchResultsView
+                android:id="@+id/navigation_search_results_view_source"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_2x"
+                android:visibility="gone"
+                app:layout_constraintTop_toBottomOf="@id/navigation_til_query_ui_source_location" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/navigation_frame_destination_location"
@@ -19,7 +52,7 @@
             android:layout_margin="@dimen/space"
             android:padding="@dimen/space"
             app:layout_constraintBottom_toTopOf="@id/navigation_tvCharging"
-            app:layout_constraintTop_toTopOf="parent">
+            app:layout_constraintTop_toBottomOf="@id/navigation_frame_source_location">
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/navigation_til_query_ui_destination_location"
@@ -37,7 +70,7 @@
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.mapbox.search.ui.view.SearchResultsView
-                android:id="@+id/navigation_search_results_view"
+                android:id="@+id/navigation_search_results_view_destination"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/space_2x"
@@ -73,66 +106,106 @@
             app:tickColor="@color/colorAccent"
             app:trackColorActive="@color/colorGreen" />
 
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/csl_carType"
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_evcars"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_margin="@dimen/space"
+            android:scrollbars="vertical"
+            app:layout_constraintTop_toBottomOf="@id/navigation_sliderEvCharge"
+            tools:listitem="@layout/car_item" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/mtbAddCar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
             android:padding="@dimen/space"
-            app:layout_constraintTop_toBottomOf="@id/navigation_sliderEvCharge">
+            android:text="@string/add_car"
+            app:icon="@drawable/ic_baseline_add_24"
+            app:iconGravity="textEnd"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/rv_evcars" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/csl_add_car"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/mtbAddCar">
 
             <TextView
-                android:id="@+id/tv_car_type"
+                android:id="@+id/tv_cartype"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/car_type"
-                android:textSize="16sp"
-                app:layout_constraintStart_toStartOf="parent"
+                android:layout_margin="@dimen/space"
+                android:padding="@dimen/space"
+                android:text="@string/select_car_type"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <RadioGroup
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_addcars"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:layout_constraintTop_toBottomOf="@id/tv_car_type">
+                android:scrollbars="vertical"
+                app:layout_constraintTop_toBottomOf="@id/tv_cartype" />
 
-                <RadioButton
-                    android:id="@+id/rb_cartesla"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:text="@string/tesla" />
+            <EditText
+                android:id="@+id/et_carage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/space"
+                android:hint="@string/car_age"
+                android:inputType="numberDecimal"
+                android:padding="@dimen/space"
+                app:layout_constraintTop_toBottomOf="@id/rv_addcars" />
 
-                <RadioButton
-                    android:id="@+id/rb_carford"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/ford" />
-            </RadioGroup>
+            <EditText
+                android:id="@+id/et_carplug"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/space"
+                android:hint="@string/car_plug_type"
+                android:padding="@dimen/space"
+                app:layout_constraintTop_toBottomOf="@id/et_carage" />
+
+            <EditText
+                android:id="@+id/et_carchargingspeed"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/space"
+                android:hint="@string/charging_speed"
+                android:inputType="numberDecimal"
+                android:padding="@dimen/space"
+                app:layout_constraintTop_toBottomOf="@id/et_carplug" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/mtb_cancel_add_car"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space"
+                android:text="@string/cancel"
+                app:icon="@drawable/ic_baseline_cancel_24"
+                app:iconGravity="textStart"
+                app:layout_constraintEnd_toStartOf="@id/mtb_check_add_car"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/et_carchargingspeed" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/mtb_check_add_car"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space"
+                android:text="@string/add_car"
+                app:icon="@drawable/ic_baseline_check_24"
+                app:iconGravity="textStart"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/mtb_cancel_add_car"
+                app:layout_constraintTop_toBottomOf="@id/et_carchargingspeed" />
+
 
         </androidx.constraintlayout.widget.ConstraintLayout>
-
-        <TextView
-            android:id="@+id/tv_car_age"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_margin="@dimen/space"
-            android:padding="@dimen/space"
-            android:text="@string/car_age"
-            android:textSize="16sp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/csl_carType" />
-
-        <EditText
-            android:id="@+id/et_car_age"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_margin="@dimen/space"
-            android:hint="@string/_5"
-            android:inputType="number"
-            android:padding="@dimen/space"
-            app:layout_constraintBottom_toBottomOf="@id/tv_car_age"
-            app:layout_constraintStart_toEndOf="@id/tv_car_age"
-            app:layout_constraintTop_toTopOf="@id/tv_car_age" />
 
         <TextView
             android:id="@+id/tv_car_passengers"
@@ -143,7 +216,7 @@
             android:text="@string/passengers"
             android:textSize="16sp"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_car_age" />
+            app:layout_constraintTop_toBottomOf="@id/csl_add_car" />
 
         <EditText
             android:id="@+id/et_passenger"
@@ -156,25 +229,6 @@
             app:layout_constraintBottom_toBottomOf="@id/tv_car_passengers"
             app:layout_constraintStart_toEndOf="@id/tv_car_passengers"
             app:layout_constraintTop_toTopOf="@id/tv_car_passengers" />
-
-
-        <!--        <com.google.android.material.button.MaterialButton-->
-        <!--            android:id="@+id/navigation_mtbStartSearch"-->
-        <!--            android:layout_width="wrap_content"-->
-        <!--            android:layout_height="wrap_content"-->
-        <!--            android:layout_marginTop="@dimen/space_3x"-->
-        <!--            android:layout_marginBottom="@dimen/space_3x"-->
-        <!--            android:text="@string/go"-->
-        <!--            android:textColor="@color/colorWhite"-->
-        <!--            android:textStyle="bold"-->
-        <!--            app:backgroundTint="@color/colorAccent"-->
-        <!--            app:icon="@drawable/ic_baseline_directions_24"-->
-        <!--            app:iconGravity="textEnd"-->
-        <!--            app:iconSize="@dimen/space_4x"-->
-        <!--            app:layout_constraintEnd_toEndOf="parent"-->
-        <!--            app:layout_constraintStart_toStartOf="parent"-->
-        <!--            app:layout_constraintTop_toBottomOf="@id/navigation_sliderEvCharge" />-->
-
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>
