@@ -49,7 +49,6 @@ import com.mapbox.android.core.location.LocationEngineResult
 import com.mapbox.api.directions.v5.models.Bearing
 import com.mapbox.api.directions.v5.models.DirectionsRoute
 import com.mapbox.api.directions.v5.models.RouteOptions
-import com.mapbox.api.tilequery.MapboxTilequery
 import com.mapbox.bindgen.Expected
 import com.mapbox.geojson.Feature
 import com.mapbox.geojson.FeatureCollection
@@ -146,12 +145,6 @@ import com.mapbox.vision.mobile.core.interfaces.VisionEventsListener
 import com.mapbox.vision.mobile.core.models.position.GeoCoordinate
 import com.mapbox.vision.utils.VisionLogger
 import kotlinx.android.synthetic.main.activity_ar_navigation.*
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
 import java.lang.ref.WeakReference
 import java.util.*
 import kotlin.properties.Delegates
@@ -1145,65 +1138,6 @@ class NavigationActivity : AppCompatActivity() {
 
     }
 
-    private fun getElevationData(nodePoint: Point, p: Point, style: Style) =
-        runBlocking {
-
-
-            makeElevationRequestToTilequeryApi(0, nodePoint)
-
-
-            makeElevationRequestToTilequeryApi(1, p)
-
-
-        }
-
-    private suspend fun makeElevationRequestToTilequeryApi(
-        t: Int,
-        p: Point,
-    ) = coroutineScope {
-
-        launch {
-            if (!elevationMap.contains(p)) {
-
-
-                val elevationQuery = MapboxTilequery.builder()
-                    .accessToken(resources.getString(R.string.mapbox_access_token))
-                    .tilesetIds("mapbox.mapbox-terrain-v2")
-                    .query(p)
-                    .geometry("polygon")
-                    .layers("contour")
-                    .build()
-                elevationQuery.enqueueCall(object : Callback<FeatureCollection?> {
-
-                    override fun onResponse(
-                        call: Call<FeatureCollection?>?,
-                        response: Response<FeatureCollection?>
-                    ) {
-
-
-                        if (response.body() != null && response.body()!!.features() != null) {
-
-                            val ele = processElevations(response.body()!!.features()!!, t)
-                            elevationMap.put(p, ele)
-
-
-                        } else {
-                            Log.e(ASTAR, response.message())
-                        }
-                    }
-
-                    override fun onFailure(call: Call<FeatureCollection?>?, throwable: Throwable) {
-
-                        UiUtils().logThrowables(ASTAR, throwable)
-
-                    }
-                })
-
-            }
-        }
-
-    }
-
     private fun processElevations(features: List<Feature>, t: Int): Int {
         var f = 0
         for (x in features) {
@@ -1226,165 +1160,6 @@ class NavigationActivity : AppCompatActivity() {
         destinationNode: Node
     ): Boolean {
         return evaluateDestination(destinationNode.node_point!!, currentNode.features)
-    }
-
-    private fun initiateDestiationPath(
-        originPoint: Point,
-        destinationPoint: Point,
-        style: Style
-    ) {
-        clearObservers()
-
-        val soc = if (initialSOC != null) {
-            MapUtils.convertChargeToSOC(initialSOC!!)
-        } else {
-            MAXIMUM_CHARGE
-        }
-
-        parentPoint = null
-        currentPoint = originPoint
-        callForIsochrone(
-            destinationPoint, style, soc
-        )
-    }
-
-    private fun callForIsochrone(
-        destinationPoint: Point,
-        style: Style,
-        SOC: Int
-    ) {
-
-        if (currentPoint != null) {
-
-            Log.e(
-                "Navigation",
-                "Called for Isochrone with currentPoint = ${currentPoint.toString()}"
-            )
-
-            clearObservers()
-            viewmodel.mapboxIsochrone(
-                currentPoint!!,
-                usePolygon,
-                resources.getString(R.string.mapbox_access_token),
-                SOC
-            ).observe(this, Observer { mReponse ->
-
-                if (viewmodel.isochroneMapboxFeature.value != null) {
-                    UiUtils().hideProgress(csl_view, pb, this)
-                    currentState = DLSState(currentPoint, mReponse)
-                    currentFeatures = mReponse
-                    isochroneStateList.add(currentState)
-                    isochroneCenters.add(currentPoint!!)
-
-
-
-                    if (currentFeatures != null) {
-                        contourFeatures.add(
-                            FeatureCollection.fromFeature(
-                                currentFeatures!!.get(0)
-                            )
-                        )
-                        makeContour(
-                            style = style,
-                            FeatureCollection.fromFeature(currentFeatures!!.get(0))
-                        )
-
-
-                        checkForDestination(destinationPoint, style)
-                    }
-
-                }
-
-
-            })
-
-
-        } else {
-
-            Log.e(
-                "Navigation",
-                "Called for Isochrone with currentPoint = NULL"
-            )
-            UiUtils().showSnackbar(csl_view, "Can not reach destination")
-        }
-
-    }
-
-    private fun checkForDestination(destinationPoint: Point, style: Style) {
-
-        if (evaluateDestination(destinationPoint, currentFeatures!!)) {
-            Log.e(
-                "Navigation",
-                "Destination found in isochrone with center ${currentPoint}"
-            )
-            UiUtils().showSnackbar(csl_view, "Destination reached")
-//            findDirectionalRoute(destinationPoint)
-
-        } else {
-
-            callForGeocode(destinationPoint, style)
-
-        }
-        return
-    }
-
-    private fun callForGeocode(destinationPoint: Point, style: Style) {
-
-        clearObservers()
-        viewmodel.getGeocodeQuery(geocodeURLBuilder(currentPoint!!, currentFeatures!!))
-            .observe(this, Observer { mReponse ->
-
-                if (viewmodel.geocodeQueryResponse.value != null) {
-                    parentPoint = currentPoint
-                    currentPoint = findAdmissiblePoint(mReponse, destinationPoint)
-                    callForIsochrone(destinationPoint, style, MAXIMUM_CHARGE)
-                }
-
-
-            })
-
-    }
-
-    private fun findAdmissiblePoint(
-        mReponse: GeoCodedQueryResponse?,
-        destinationPoint: Point
-    ): Point? {
-        if (mReponse != null) {
-
-
-            var admissiblePoint: Point? = null
-            var _distanceToDestination = Double.MAX_VALUE       //In km
-
-
-
-            for (e in 0 until mReponse.features.size) {
-
-                val p = Point.fromLngLat(
-                    mReponse.features[e].center[0],
-                    mReponse.features[e].center[1]
-                )
-
-
-                val _pointToDestination = eucledianDistance(p, destinationPoint)
-
-                if (isochroneCenters.contains(p)) {
-                    continue
-                }
-                Log.e(
-                    "Navigation",
-                    "Point $e  = ${p.toJson()} and distance = $_pointToDestination"
-                )
-
-                if (_pointToDestination < _distanceToDestination) {
-                    _distanceToDestination = _pointToDestination
-                    admissiblePoint = p
-                }
-            }
-
-            return admissiblePoint
-
-        }
-        return null
     }
 
     private fun geocodeURLBuilder(
@@ -1556,72 +1331,6 @@ class NavigationActivity : AppCompatActivity() {
 
     }
 
-    private fun findDirectionalRoute(destinationPoint: Point) {
-
-
-        if (isochroneCenters.isEmpty()) {
-            return findRoute(destinationPoint)
-        }
-
-
-        val originLocation = navigationLocationProvider.lastLocation
-        val originPoint = originLocation?.let {
-            Point.fromLngLat(it.longitude, it.latitude)
-        } ?: return
-
-        if (isochroneCenters.last() != destinationPoint) {
-            isochroneCenters.add(destinationPoint)
-        }
-
-        Log.e("Navigation", "Directional API on  ${isochroneCenters.toString()}")
-
-
-        mapboxNavigation.requestRoutes(
-            RouteOptions.builder()
-                .applyDefaultNavigationOptions()
-                .applyLanguageAndVoiceUnitOptions(this)
-                .coordinatesList(isochroneCenters.toList())
-                .bearingsList(
-                    MapUtils.getDirectionBearings(originLocation, isochroneCenters).toList()
-                )
-                .layersList(MapUtils.getDirectionLayers(isochroneCenters))
-                .build(),
-            object : RouterCallback {
-                override fun onRoutesReady(
-                    routes: List<DirectionsRoute>,
-                    routerOrigin: RouterOrigin
-                ) {
-                    setRouteAndStartNavigation(routes, originPoint, destinationPoint)
-
-                }
-
-                override fun onFailure(
-                    reasons: List<RouterFailure>,
-                    routeOptions: RouteOptions
-                ) {
-
-                    Log.e(
-                        "Navigation",
-                        "Failed Direction API because ${reasons.toString()}"
-                    )
-                    Toast.makeText(
-                        this@NavigationActivity,
-                        "Failed = $reasons",
-                        Toast.LENGTH_LONG
-                    )
-                        .show()
-                }
-
-                override fun onCanceled(
-                    routeOptions: RouteOptions,
-                    routerOrigin: RouterOrigin
-                ) {
-                }
-            }
-        )
-
-    }
-
     private fun astarRouteSelection(destinationPoint: Point) {
 
 
@@ -1692,8 +1401,6 @@ class NavigationActivity : AppCompatActivity() {
 
     }
 
-
-    @SuppressLint("SetTextI18n")
     private fun setRouteAndStartNavigation(
         routes: List<DirectionsRoute>,
         sourcePoint: Point,
@@ -1943,7 +1650,6 @@ class NavigationActivity : AppCompatActivity() {
         }
     }
 
-
     private fun DirectionsRoute.getRoutePoints(): Array<RoutePoint> {
         val routePoints = arrayListOf<RoutePoint>()
         legs()?.forEach { leg ->
@@ -1975,7 +1681,6 @@ class NavigationActivity : AppCompatActivity() {
 
         return routePoints.toTypedArray()
     }
-
 
     private fun startVisionManager(route: DirectionsRoute) {
 
