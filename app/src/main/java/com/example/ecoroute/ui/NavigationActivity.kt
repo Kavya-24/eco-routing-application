@@ -154,10 +154,6 @@ import kotlin.properties.Delegates
 class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
 
-    /**
-     * AR Variables
-     */
-
     private lateinit var mapboxArView: VisionArView
     private var visionManagerWasInit = false
     private var navigationWasStarted = false
@@ -391,7 +387,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
             viewportDataSource.onRouteChanged(
                 routeUpdateResult.navigationRoutes.toDirectionsRoutes().first()
-                    .toNavigationRoute(routerOrigin)
+                    .toNavigationRoute()
             )
             viewportDataSource.evaluate()
         } else {
@@ -597,19 +593,21 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
             //No new car added or selected
             if (CAR_IDX == null) {
                 Toast.makeText(this, "No car added", Toast.LENGTH_SHORT).show()
+
             } else if (destinationSearchPoint == null) {
                 Toast.makeText(this, "Destination Location not defined", Toast.LENGTH_SHORT).show()
-            }
+            } else if (CAR_IDX != null && destinationSearchPoint != null && !etDestination.text.isNullOrBlank()) {
 
-            if (sourceSearchPoint == null) {
-                Toast.makeText(
-                    this,
-                    "Source Location not defined. Using current location",
-                    Toast.LENGTH_SHORT
-                ).show()
-                sourceSearchPoint = originPoint
-            }
-            if (destinationSearchPoint != null && !etDestination.text.isNullOrBlank()) {
+                if (sourceSearchPoint == null) {
+                    Toast.makeText(
+                        this,
+                        "Source Location not defined. Using current location",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    sourceSearchPoint = originPoint
+                }
+
+
                 astarInitiate(sourceSearchPoint!!, destinationSearchPoint!!, style)
             }
         }
@@ -916,13 +914,12 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
             this.locationPuck = LocationPuck2D(
                 bearingImage = ContextCompat.getDrawable(
                     this@NavigationActivity,
-                    com.example.ecoroute.R.drawable.mapbox_navigation_puck_icon
+                    com.example.ecoroute.R.drawable.mapbox_user_puck_icon
                 )
             )
             setLocationProvider(navigationLocationProvider)
             enabled = true
         }
-
 
 
         mapboxNavigation = if (MapboxNavigationProvider.isCreated()) {
@@ -1501,7 +1498,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                     routerOrigin: RouterOrigin
                 ) {
 
-                    setRouteAndStartNavigation(routes, originPoint, destinationPoint)
+                    setRouteAndStartNavigation(routes, originPoint, destinationPoint, routerOrigin)
 
                 }
 
@@ -1560,7 +1557,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                 ) {
 
 
-                    setRouteAndStartNavigation(routes, originPoint, destinationPoint)
+                    setRouteAndStartNavigation(routes, originPoint, destinationPoint, routerOrigin)
 
                 }
 
@@ -1594,7 +1591,8 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
     private fun setRouteAndStartNavigation(
         routes: List<DirectionsRoute>,
         sourcePoint: Point,
-        destinationPoint: Point
+        destinationPoint: Point,
+        routerOrigin: RouterOrigin
     ) {
 
         NAVIGATION_IN_PROGRESS = true
@@ -1716,11 +1714,9 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
     private fun clearRouteAndStopNavigation() {
         /** clear*/
-        mapboxNavigation.setNavigationRoutes(
-            listOf<DirectionsRoute>().toNavigationRoutes(
-                routerOrigin
-            )
-        )
+        /** clear*/
+        mapboxNavigation.setNavigationRoutes(listOf<DirectionsRoute>().toNavigationRoutes())
+
 
         /** stop simulation*/
         mapboxReplayer.stop()
