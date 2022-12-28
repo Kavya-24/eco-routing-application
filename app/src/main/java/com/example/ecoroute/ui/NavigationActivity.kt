@@ -2,7 +2,6 @@ package com.example.ecoroute.ui
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
-import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Color
@@ -25,17 +24,16 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.ecoroute.R
 import com.example.ecoroute.adapters.EVCarsListAdapter
 import com.example.ecoroute.adapters.OnItemClickListener
-import com.example.ecoroute.models.DLSState
 import com.example.ecoroute.models.EVCar
 import com.example.ecoroute.models.astar.Node
 import com.example.ecoroute.models.responses.GeoCodedQueryResponse
 import com.example.ecoroute.utils.*
 import com.example.ecoroute.utils.MapUtils.CAR_AGE_THETA
 import com.example.ecoroute.utils.MapUtils.CAR_PASSENGER_THETA
-import com.example.ecoroute.utils.MapUtils.MAXIMUM_CHARGE
 import com.example.ecoroute.utils.MapUtils.MAXIMUM_NODES
 import com.example.ecoroute.utils.MapUtils.buildStepPointsFromGeometry
 import com.example.ecoroute.utils.MapUtils.compareByHeuristic
+import com.example.ecoroute.utils.MapUtils.convertChargeToSOC
 import com.example.ecoroute.utils.MapUtils.eucledianDistance
 import com.example.ecoroute.utils.MapUtils.mapToManeuverType
 import com.google.android.material.button.MaterialButton
@@ -144,24 +142,23 @@ import com.mapbox.vision.ar.view.gl.VisionArView
 import com.mapbox.vision.mobile.core.interfaces.VisionEventsListener
 import com.mapbox.vision.mobile.core.models.position.GeoCoordinate
 import com.mapbox.vision.utils.VisionLogger
-import kotlinx.android.synthetic.main.activity_ar_navigation.*
-import kotlinx.android.synthetic.main.navigation_search.*
 import java.lang.ref.WeakReference
 import java.util.*
 import kotlin.properties.Delegates
 
-@SuppressLint("LogNotTimber")
+
+@SuppressLint("LogNotTimber", "StringFormatInvalid", "SetTextI18n")
 class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
+    private val ASTAR = "ASTAR"
 
+
+    //AR Variables
     private lateinit var mapboxArView: VisionArView
     private var visionManagerWasInit = false
-    private var navigationWasStarted = false
-
     private val arLocationEngine by lazy {
         LocationEngineProvider.getBestLocationEngine(this)
     }
-
     private val arLocationEngineRequest by lazy {
         LocationEngineRequest.Builder(0)
             .setPriority(LocationEngineRequest.PRIORITY_HIGH_ACCURACY)
@@ -169,6 +166,8 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
             .build()
     }
 
+
+    private var NAVIGATION_IN_PROGRESS = false
     private val locationCallback by lazy {
         object : LocationEngineCallback<LocationEngineResult> {
             override fun onSuccess(result: LocationEngineResult?) {}
@@ -177,77 +176,85 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
         }
     }
 
-    private fun setArRenderOptions(visionArView: VisionArView) {
-        // enable fence rendering
-        visionArView.setFenceVisible(true)
-    }
-
-
-    private var NAVIGATION_IN_PROGRESS = false
-    private val priorityQueue = PriorityQueue<Node>(compareByHeuristic)
-    private val nodeMap = mutableSetOf<Point>()
-    private var countIso = 0
-    private var stationMap = mutableMapOf<Point, Int>()
-    private var outputLog = ""
-    private lateinit var searchEngine: SearchEngine
-    private lateinit var options: SearchOptions
-    private var difference_in_elevation = 0
-    private var currentHeight = 0
-    private var nextHeight = 0
-    private val ASTAR = "ASTAR"
-    private val elevationMap = mutableMapOf<Point, Int>()
+    //Navigational route variables
+    private val priorityQueue =
+        PriorityQueue<Node>(compareByHeuristic)   //The global pq for the A* of a round
+    private val nodeMap =
+        mutableSetOf<Point>()                           //The global set of consumed stations
+    private var countIso =
+        0                                              //Level distance from the source
+    private var stationMap =
+        mutableMapOf<Point, Int>()                   //Discovered and minimum distance from source
     private var close_list_points = mutableListOf<Point>()
 
+    //Search Engine Variables
+    private lateinit var searchEngine: SearchEngine
+    private lateinit var options: SearchOptions
+
+
+    //Elevation Statistics
+    private var currentHeight = 0
+    private var nextHeight = 0
+
+    //Constraint Variables
     private var radius by Delegates.notNull<Double>()
     private lateinit var center: Point
-    private lateinit var mapStyle: Style
 
+
+    //UI Variable Buttons
     private lateinit var fabNavigate: FloatingActionButton
     lateinit var mtbExtraLims: MaterialButton
     private lateinit var mtbRemainingCharge: MaterialButton
 
+
+    //DialogBox Variables
     private lateinit var etSource: TextInputEditText
     private lateinit var sourceSearchResultView: SearchResultsView
-
+    private var sourceSearchPoint: Point? = null
     private lateinit var etDestination: TextInputEditText
     private lateinit var destinationSearchResultView: SearchResultsView
-
+    private var destinationSearchPoint: Point? = null
     private lateinit var chargingSlider: Slider
     private lateinit var tvCharging: TextView
-
-    private var sourceSearchPoint: Point? = null
-    private var destinationSearchPoint: Point? = null
     private var initialSOC: Double? = null
 
-    private lateinit var rvcars: RecyclerView
-    private lateinit var mtbaddcar: MaterialButton
-    private lateinit var evcartypeadapter: EVCarsListAdapter
-
-    //Vehicle Profile
+    //Adding a car and saving it
     private val pref = PreferenceUtil
-    private var CAR_PASSENGER = 1
-    private var VEHICLE_PROFILE = 0.0
-
+    private lateinit var mtbaddcar: MaterialButton
     private lateinit var rvcartypes: RecyclerView
     private lateinit var etCarAge: EditText
     private lateinit var etCarPlugType: EditText
     private lateinit var etCarChargingSpeed: EditText
+    private lateinit var evcartypeadapter: EVCarsListAdapter
+
+    //Selecting the car
+    private lateinit var rvcars: RecyclerView
     private lateinit var CAR_TYPE_IDX: EVCar
     private var CAR_IDX: EVCar? = null
 
+    //Passenger Statistics
+    private var CAR_PASSENGER = 1
+    private var VEHICLE_PROFILE = 0.0
 
+    //Map Variables
     private var MAP_READY = false
     private val viewmodel: NavigationViewModel by viewModels()
-    private var times = 0
-    private var parentPoint: Point? = null
-    private var currentPoint: Point? = null
-    private var currentFeatures: List<Feature>? = null
-    private var currentState: DLSState = DLSState(currentPoint, currentFeatures)
-    private var isochroneStateList = mutableListOf<DLSState>()
-    private var isochroneCenters = mutableListOf<Point>()
-    private var contourFeatures = mutableListOf<FeatureCollection>()
     private lateinit var pb: ProgressBar
     private lateinit var csl_view: ConstraintLayout
+    private lateinit var sv: ScrollView
+    private lateinit var tv: TextView
+
+
+    //Mapbox Map Variables
+    private lateinit var navigationCamera: NavigationCamera
+    private lateinit var viewportDataSource: MapboxNavigationViewportDataSource
+    private var usePolygon = true
+    private val BUTTON_ANIMATION_DURATION = 1500L
+    private lateinit var mapView: MapView
+    private lateinit var mapboxMap: MapboxMap
+    private lateinit var mapboxNavigation: MapboxNavigation
+
+    //Layer Variables
     private val ISOCHRONE_RESPONSE_GEOJSON_SOURCE_ID = "ISOCHRONE_RESPONSE_GEOJSON_SOURCE_ID"
     private val ISOCHRONE_FILL_LAYER = "ISOCHRONE_FILL_LAYER"
     private val ISOCHRONE_LINE_LAYER = "ISOCHRONE_LINE_LAYER"
@@ -255,19 +262,17 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
     private val MAP_CLICK_SOURCE_ID = "MAP_CLICK_SOURCE_ID"
     private val MAP_CLICK_MARKER_ICON_ID = "MAP_CLICK_MARKER_ICON_ID"
     private val MAP_CLICK_MARKER_LAYER_ID = "MAP_CLICK_MARKER_LAYER_ID"
-    private var usePolygon = true
-    private val mapboxReplayer = MapboxReplayer()
-    private val replayLocationEngine = ReplayLocationEngine(mapboxReplayer)
-    private val replayProgressObserver = ReplayProgressObserver(mapboxReplayer)
-    private lateinit var navigationCamera: NavigationCamera
-    private lateinit var viewportDataSource: MapboxNavigationViewportDataSource
+
+    //API points and inits
     private lateinit var maneuverApi: MapboxManeuverApi
     private lateinit var tripProgressApi: MapboxTripProgressApi
     private lateinit var routeLineApi: MapboxRouteLineApi
     private lateinit var routeLineView: MapboxRouteLineView
     private val routeArrowApi: MapboxRouteArrowApi = MapboxRouteArrowApi()
     private lateinit var routeArrowView: MapboxRouteArrowView
-    private val BUTTON_ANIMATION_DURATION = 1500L
+
+    /**Observers and callbacks */
+    //Voice commands
     private var isVoiceInstructionsMuted = false
         set(value) {
             field = value
@@ -309,32 +314,8 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
         MapboxNavigationConsumer<SpeechAnnouncement> { value ->
             speechApi.clean(value)
         }
-    private val locationObserver = object : LocationObserver {
-        var firstLocationUpdateReceived = false
 
-        override fun onNewRawLocation(rawLocation: Location) {
-        }
-
-        override fun onNewLocationMatcherResult(locationMatcherResult: LocationMatcherResult) {
-            val enhancedLocation = locationMatcherResult.enhancedLocation
-            navigationLocationProvider.changePosition(
-                location = enhancedLocation,
-                keyPoints = locationMatcherResult.keyPoints,
-            )
-
-            viewportDataSource.onLocationChanged(enhancedLocation)
-            viewportDataSource.evaluate()
-
-            if (!firstLocationUpdateReceived) {
-                firstLocationUpdateReceived = true
-                navigationCamera.requestNavigationCameraToOverview(
-                    stateTransitionOptions = NavigationCameraTransitionOptions.Builder()
-                        .maxDuration(0) // instant transition
-                        .build()
-                )
-            }
-        }
-    }
+    //Route
     private val routeProgressObserver = RouteProgressObserver { routeProgress ->
 
         // update the camera position to account for the progressed fragment of the route
@@ -406,58 +387,41 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
             viewportDataSource.evaluate()
         }
     }
-    private lateinit var mapView: MapView
-    private lateinit var mapboxMap: MapboxMap
-    private lateinit var mapboxNavigation: MapboxNavigation
-    private val navigationLocationProvider = NavigationLocationProvider()
-    private lateinit var locationPermissionHelper: LocationPermissionHelper
-    private lateinit var sv: ScrollView
-    private lateinit var tv: TextView
-    val searchCallback = object : SearchSelectionCallback {
 
+    //Location
+    private val locationObserver = object : LocationObserver {
+        var firstLocationUpdateReceived = false
 
-        override fun onSuggestions(
-            suggestions: List<SearchSuggestion>,
-            responseInfo: ResponseInfo
-        ) {
+        override fun onNewRawLocation(rawLocation: Location) {
+        }
 
-            if (suggestions.isEmpty()) {
-                Log.e(ASTAR, "No search suggestions found")
-            } else {
+        override fun onNewLocationMatcherResult(locationMatcherResult: LocationMatcherResult) {
+            val enhancedLocation = locationMatcherResult.enhancedLocation
+            navigationLocationProvider.changePosition(
+                location = enhancedLocation,
+                keyPoints = locationMatcherResult.keyPoints,
+            )
 
-                for (r in suggestions) {
-                    Log.e(
-                        ASTAR,
-                        "result name, country: ${r.name} and ${r.address} and ${r.address?.country}"
-                    )
-                }
+            viewportDataSource.onLocationChanged(enhancedLocation)
+            viewportDataSource.evaluate()
 
-
+            if (!firstLocationUpdateReceived) {
+                firstLocationUpdateReceived = true
+                navigationCamera.requestNavigationCameraToOverview(
+                    stateTransitionOptions = NavigationCameraTransitionOptions.Builder()
+                        .maxDuration(0) // instant transition
+                        .build()
+                )
             }
-
-        }
-
-
-        override fun onResult(
-            suggestion: SearchSuggestion,
-            result: SearchResult,
-            responseInfo: ResponseInfo
-        ) {
-            val location = result.coordinate
-            Log.e(ASTAR, "Search result's location: $location")
-        }
-
-        override fun onCategoryResult(
-            suggestion: SearchSuggestion,
-            results: List<SearchResult>,
-            responseInfo: ResponseInfo
-        ) {
-        }
-
-        override fun onError(e: Exception) {
-            Log.e(ASTAR, "Search error", e)
         }
     }
+    private val navigationLocationProvider = NavigationLocationProvider()
+    private lateinit var locationPermissionHelper: LocationPermissionHelper
+
+    //Replayer
+    private val mapboxReplayer = MapboxReplayer()
+    private val replayLocationEngine = ReplayLocationEngine(mapboxReplayer)
+    private val replayProgressObserver = ReplayProgressObserver(mapboxReplayer)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -497,13 +461,10 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
         val originPoint = originLocation?.let {
             Point.fromLngLat(it.longitude, it.latitude)
         } ?: return
-
         createDialog(originPoint, style)
 
     }
 
-
-    @SuppressLint("StringFormatInvalid", "SetTextI18n")
     private fun createDialog(originPoint: Point, style: Style) {
         val d = AlertDialog.Builder(this)
         val v = layoutInflater.inflate(R.layout.navigation_search, null)
@@ -596,7 +557,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
             } else if (destinationSearchPoint == null) {
                 Toast.makeText(this, "Destination Location not defined", Toast.LENGTH_SHORT).show()
-            } else if (CAR_IDX != null && destinationSearchPoint != null && !etDestination.text.isNullOrBlank()) {
+            } else if (!etDestination.text.isNullOrBlank()) {
 
                 if (sourceSearchPoint == null) {
                     Toast.makeText(
@@ -616,6 +577,11 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
         d.show()
     }
 
+    override fun clickThisItem(_listItem: EVCar) {
+        Log.e(ASTAR, "Car Clicked")
+        CAR_TYPE_IDX = _listItem
+        CAR_IDX = _listItem
+    }
 
     private fun addEVCar() {
 
@@ -636,7 +602,16 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
         CAR_IDX = evCar
         Log.e(ASTAR, "CAR IDX = $CAR_IDX")
+    }
 
+    private fun loadCarTypes() {
+
+        val evcars = InitOptions.getEVCarsList()
+        evcartypeadapter = EVCarsListAdapter(this)
+        evcartypeadapter.lst = evcars
+        evcartypeadapter.currentCarPosition = 0
+        rvcartypes.layoutManager = LinearLayoutManager(ApplicationUtils.getContext())
+        rvcartypes.adapter = evcartypeadapter
     }
 
     private fun loadCars() {
@@ -660,22 +635,6 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
     }
 
-    private fun loadCarTypes() {
-
-        val evcars = InitOptions.getEVCarsList()
-        evcartypeadapter = EVCarsListAdapter(this)
-        evcartypeadapter.lst = evcars
-        evcartypeadapter.currentCarPosition = 0
-        rvcartypes.layoutManager = LinearLayoutManager(ApplicationUtils.getContext())
-        rvcartypes.adapter = evcartypeadapter
-    }
-
-    override fun clickThisItem(_listItem: EVCar) {
-        Log.e(ASTAR, "Car Clicked")
-        CAR_TYPE_IDX = _listItem
-        CAR_IDX = _listItem
-    }
-
     private fun addQueryListeners() {
 
         etSource.addTextChangedListener(object : TextWatcher {
@@ -684,7 +643,6 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                 if (!s.toString().isEmpty()) {
                     sourceSearchResultView.search(s.toString())
                 }
-
 
             }
 
@@ -846,7 +804,6 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
     private fun onMapReady() {
 
-
         mapboxMap.loadStyle(
             style(styleUri = Style.TRAFFIC_DAY) {
 
@@ -901,6 +858,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
                         true
                     }
+
                     MAP_READY = true
 
 
@@ -1068,25 +1026,6 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
     }
 
-
-    private fun initiateAR() {
-
-        try {
-            arLocationEngine.requestLocationUpdates(
-                arLocationEngineRequest,
-                locationCallback,
-                mainLooper
-            )
-
-
-        } catch (se: SecurityException) {
-            VisionLogger.e(ASTAR, se.toString())
-            Log.e(ASTAR, "Security exception with AR. ${se.message} and cause = ${se.cause}")
-        }
-
-
-    }
-
     private fun initateSearchEngine() {
         searchEngine =
             MapboxSearchSdk.createSearchEngine(SearchEngineSettings(resources.getString(R.string.mapbox_access_token)))
@@ -1094,23 +1033,28 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
     }
 
     private fun astarInitiate(originPoint: Point, destinationPoint: Point, style: Style) {
-        clearRoute()
+        clearRouteAndStopNavigation()
+
         val soc = if (initialSOC != null) {
-            Log.e(ASTAR, "Initial SOC: " + initialSOC)
+            Log.e(ASTAR, "Initial SOC: $initialSOC")
             MapUtils.convertChargeToSOC(initialSOC!!)
         } else {
-            MAXIMUM_CHARGE
+            convertChargeToSOC(20.0)
         }
 
         radius = 1.5 * eucledianDistance(originPoint, destinationPoint)
         center = MapUtils.getCenter(originPoint, destinationPoint)
-        Log.e(ASTAR, "Radius = $radius and center = $center")
+        Log.e(
+            ASTAR,
+            "Origin: $originPoint. Destination: $destinationPoint Radius = $radius and center = $center"
+        )
 
-        /**Vehicle Profile*/
+
         VEHICLE_PROFILE =
             CAR_IDX!!.carAge.toInt() * CAR_AGE_THETA + +CAR_IDX!!.carType.carEffectFactor + CAR_PASSENGER * CAR_PASSENGER_THETA
 
-        Log.e(ASTAR, "Car type = $CAR_IDX and passengers = $CAR_PASSENGER")
+        Log.e(ASTAR, "Car = $CAR_IDX and passengers = $CAR_PASSENGER")
+
 
         val currentNode =
             Node(originPoint, 0.0, eucledianDistance(originPoint, destinationPoint), soc, null)
@@ -1119,6 +1063,8 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
 
         priorityQueue.add(currentNode)
+        stationMap[currentNode.node_point!!] = countIso
+
         astar_callIsochrone(currentNode, destinationNode, style)
 
 
@@ -1129,11 +1075,12 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
         if (currentNode.node_point != null) {
 
 
-            clearObservers()
+            clearIsochroneObservers()
             close_list_points.add(currentNode.node_point)
+
             Log.e(
                 ASTAR,
-                "\nCreating a geofence around ${currentNode.node_point} with charge ${currentNode.soc}"
+                "\nCreating an isochrone around ${currentNode.node_point} with charge ${currentNode.soc}"
             )
 
 
@@ -1162,7 +1109,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                             //The destination lies here
                             Log.e(
                                 ASTAR,
-                                "\nDestination found in after station with center ${currentNode.node_point}"
+                                "\nDestination found after station with center ${currentNode.node_point}"
                             )
 
                             UiUtils().showSnackbar(
@@ -1174,8 +1121,8 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
 
                         } else {
-                            //Else the destination does not lie here. Need to find 3 most admissible points
-                            astar_callGeocode(currentNode, destinationNode, style)
+                            //Else the destination does not lie here.
+                            astar_callGeocode(currentNode, destinationNode, style, mReponse)
                         }
 
 
@@ -1201,15 +1148,19 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                 ASTAR,
                 "Called for Isochrone with currentPoint = NULL"
             )
-            UiUtils().showSnackbar(csl_view, "Can not reach destination")
+            UiUtils().showSnackbar(csl_view, "Can not reach destination with supplied SOC")
         }
 
     }
 
+    private fun astar_callGeocode(
+        currentNode: Node,
+        destinationNode: Node,
+        style: Style,
+        isochroneResponse: List<Feature>
+    ) {
 
-    private fun astar_callGeocode(currentNode: Node, destinationNode: Node, style: Style) {
-
-        clearObservers()
+        clearGeocodeObservsers()
 
         viewmodel.getGeocodeQuery(
             geocodeURLBuilder(
@@ -1224,7 +1175,13 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                     if (mReponse != null) {
 
 
-                        atstar_findAdmissibleNodes(mReponse, currentNode, destinationNode, style)
+                        atstar_findAdmissibleNodes(
+                            mReponse,
+                            currentNode,
+                            destinationNode,
+                            style,
+                            isochroneResponse
+                        )
                         if (priorityQueue.isEmpty()) {
 
                             Log.e(
@@ -1267,7 +1224,8 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
         mReponse: GeoCodedQueryResponse,
         currentNode: Node,
         destinationNode: Node,
-        style: Style
+        style: Style,
+        isochroneResponse: List<Feature>
     ) {
 
 
@@ -1276,7 +1234,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
             if (currentNode.node_point != null) {
 
-                //Remove the currentNode from pq
+                //Remove the currentNode from pq and add in node map as consumed stations
                 priorityQueue.remove().node_point?.let { nodeMap.add(it) }
 
                 val parent_gn = currentNode.g_n
@@ -1285,6 +1243,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                 var eData = 0.0
                 var p_hn = 0.0
                 var pNode = Node(null, 0.0, 0.0, 0, null)
+
                 val childrenPrirorityQueue = PriorityQueue<Node>(compareByHeuristic)
 
                 for (e in 0 until mReponse.features.size) {
@@ -1296,41 +1255,44 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
 
                     /**
-                     * We have already counted this. Or it is really far away from destination and lies outside the circle
+                     * We have already counted this.
+                     * Or it is really far away from destination and lies outside the circle
+                     * Or it lies outside the reachable distance from the current source
                      */
-                    if (nodeMap.contains(p) || !MapUtils.pointInAdmissibleCircle(
-                            center,
-                            p,
-                            radius
-                        )
+                    if (nodeMap.contains(p) || !evaluateDestination(p, isochroneResponse)
                     ) {
                         continue
                     }
 
+
                     currentHeight = 0
                     nextHeight = 0
+                    eData = 0.0
 
-
-                    eData = (nextHeight - currentHeight).toDouble()
                     p_gn = eucledianDistance(p, currentNode.node_point) + parent_gn + eData
                     p_hn = eucledianDistance(p, destinationNode.node_point!!)
-                    pNode = Node(p, p_gn, p_hn, MAXIMUM_CHARGE, null)
-
+                    pNode = Node(
+                        p,
+                        p_gn,
+                        p_hn,
+                        convertChargeToSOC(CAR_IDX!!.carType.chargingSpeed),
+                        null
+                    )
 
                     childrenPrirorityQueue.add(pNode)
-
 
                 }
 
                 var cnt = MAXIMUM_NODES
                 while (!childrenPrirorityQueue.isEmpty() && cnt > 0) {
 
-                    if (nodeMap.contains(childrenPrirorityQueue.peek()!!.node_point)) {
+                    //If already seen
+                    if (stationMap.containsKey(childrenPrirorityQueue.peek()?.node_point!!)) {
                         childrenPrirorityQueue.remove()
                         continue
                     }
+
                     priorityQueue.add(childrenPrirorityQueue.peek())
-                    childrenPrirorityQueue.peek()!!.node_point?.let { nodeMap.add(it) }
                     stationMap[childrenPrirorityQueue.peek()!!.node_point!!] = countIso
                     childrenPrirorityQueue.remove()
                     cnt--
@@ -1363,7 +1325,6 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
         )
     }
 
-
     private fun evaluateDestination(
         destinationPoint: Point,
         features: List<Feature>?
@@ -1373,6 +1334,399 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
         }
 
         return TurfJoins.inside(destinationPoint, features[0].geometry() as Polygon)
+    }
+
+    private fun astarRouteSelection(destinationPoint: Point) {
+
+
+        if (close_list_points.isEmpty()) {
+            return findRoute(destinationPoint)
+        }
+
+
+        val originLocation = navigationLocationProvider.lastLocation
+        val originPoint = originLocation?.let {
+            Point.fromLngLat(it.longitude, it.latitude)
+        } ?: return
+
+        if (close_list_points.last() != destinationPoint) {
+            close_list_points.add(destinationPoint)
+        }
+
+
+
+        Log.e(ASTAR, "Directional API close_list  $close_list_points")
+
+
+        mapboxNavigation.requestRoutes(
+            RouteOptions.builder()
+                .applyDefaultNavigationOptions()
+                .applyLanguageAndVoiceUnitOptions(this)
+                .coordinatesList(close_list_points.toList())
+                .bearingsList(
+                    MapUtils.getDirectionBearings(originLocation, close_list_points).toList()
+                )
+                .layersList(MapUtils.getDirectionLayers(close_list_points))
+                .build(),
+            object : RouterCallback {
+                override fun onRoutesReady(
+                    routes: List<DirectionsRoute>,
+                    routerOrigin: RouterOrigin
+                ) {
+
+
+                    setRouteAndStartNavigation(routes, originPoint, destinationPoint, routerOrigin)
+
+                }
+
+                override fun onFailure(
+                    reasons: List<RouterFailure>,
+                    routeOptions: RouteOptions
+                ) {
+
+                    Log.e(
+                        ASTAR,
+                        "Failed Direction API because $reasons"
+                    )
+                    Toast.makeText(
+                        this@NavigationActivity,
+                        "Failed = $reasons",
+                        Toast.LENGTH_LONG
+                    )
+                        .show()
+                }
+
+                override fun onCanceled(
+                    routeOptions: RouteOptions,
+                    routerOrigin: RouterOrigin
+                ) {
+                }
+            }
+        )
+
+    }
+
+    private fun setRouteAndStartNavigation(
+        routes: List<DirectionsRoute>,
+        sourcePoint: Point,
+        destinationPoint: Point,
+        routerOrigin: RouterOrigin
+    ) {
+
+        NAVIGATION_IN_PROGRESS = true
+        mapboxNavigation.setNavigationRoutes(routes.toNavigationRoutes(routerOrigin))
+
+        //startSimulation(routes.first())
+
+
+        val pathUtil = PathUtils()
+        pathUtil.modelIntermediateRoute(
+            routes,
+            this,
+            resources.getString(R.string.mapbox_access_token)
+        )
+
+        pathUtil.ELEVATION_STATUS.observe(this, Observer { elevationCompleted ->
+            if (elevationCompleted == true) {
+
+                mtbExtraLims.visibility = View.VISIBLE
+                mtbExtraLims.text = resources.getString(
+                    R.string.profileparams,
+                    "${(pathUtil.maneuverStatistics + pathUtil.elevationStatistics).toInt()}"
+                ) + "\n+$VEHICLE_PROFILE"
+                pathUtil.ELEVATION_STATUS.value = false
+                pathUtil.elevationStatistics = 0.0
+                Log.e(
+                    ASTAR,
+                    "Elevation: ${pathUtil.elevationStatistics} and ${pathUtil.maneuverStatistics}"
+                )
+            }
+        })
+
+
+        /** show UI elements*/
+        findViewById<MapboxSoundButton>(R.id.soundButton).visibility = View.VISIBLE
+        findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).visibility =
+            View.VISIBLE
+        findViewById<CardView>(R.id.tripProgressCard).visibility = View.VISIBLE
+
+//        /** move the camera to overview when new route is available */
+//        navigationCamera.requestNavigationCameraToOverview()
+
+        val route = routes.first()
+        startVisionManager(route)
+
+    }
+
+
+    private fun clearRouteAndStopNavigation() {
+
+        clearObservers()
+        clearRouteVariables()
+        hideUIElement()
+        initializeVariables()
+
+        /**Clear set navigation paths to empty*/
+        mapboxNavigation.setNavigationRoutes(listOf<DirectionsRoute>().toNavigationRoutes())
+
+        /** stop simulation*/
+        mapboxReplayer.stop()
+
+        NAVIGATION_IN_PROGRESS = false
+
+
+        //Stop VisioManager
+        stopVisionManager()
+
+    }
+
+    private fun initializeVariables() {
+        sourceSearchPoint = null
+        destinationSearchPoint = null
+        initialSOC = null
+
+    }
+
+    private fun hideUIElement() {
+        findViewById<MapboxSoundButton>(R.id.soundButton).visibility = View.INVISIBLE
+        findViewById<MapboxManeuverView>(R.id.maneuverView).visibility = View.INVISIBLE
+        findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).visibility =
+            View.INVISIBLE
+        findViewById<CardView>(R.id.tripProgressCard).visibility = View.INVISIBLE
+        mtbExtraLims.visibility = View.GONE
+
+    }
+
+    private fun clearRouteVariables() {
+        priorityQueue.clear()
+        nodeMap.clear()
+        stationMap.clear()
+        countIso = 0
+        close_list_points.clear()
+
+    }
+
+
+    private fun clearIsochroneObservers() {
+        viewmodel.successfulMapboxIsochrone.removeObservers(this)
+        viewmodel.successfulMapboxIsochrone.value = null
+        viewmodel.messageMapboxIsochrone.removeObservers(this)
+        viewmodel.messageMapboxIsochrone.value = null
+        viewmodel.isochroneMapboxFeature.removeObservers(this)
+        viewmodel.isochroneMapboxFeature.value = null
+
+    }
+
+    private fun clearGeocodeObservsers() {
+        viewmodel.successfulGeocode.removeObservers(this)
+        viewmodel.successfulGeocode.value = null
+        viewmodel.messageGeocode.removeObservers(this)
+        viewmodel.messageGeocode.value = null
+        viewmodel.geocodeQueryResponse.removeObservers(this)
+        viewmodel.geocodeQueryResponse.value = null
+
+    }
+
+    private fun clearObservers() {
+        clearIsochroneObservers()
+        clearGeocodeObservsers()
+    }
+
+
+    private fun DirectionsRoute.getRoutePoints(): Array<RoutePoint> {
+        val routePoints = arrayListOf<RoutePoint>()
+        legs()?.forEach { leg ->
+            leg.steps()?.forEach { step ->
+                val maneuverPoint = RoutePoint(
+                    GeoCoordinate(
+                        latitude = step.maneuver().location().latitude(),
+                        longitude = step.maneuver().location().longitude()
+                    ),
+                    step.maneuver().type().mapToManeuverType()
+                )
+                routePoints.add(maneuverPoint)
+
+                step.geometry()
+                    ?.buildStepPointsFromGeometry()
+                    ?.map { geometryStep ->
+                        RoutePoint(
+                            GeoCoordinate(
+                                latitude = geometryStep.latitude(),
+                                longitude = geometryStep.longitude()
+                            )
+                        )
+                    }
+                    ?.let { stepPoints ->
+                        routePoints.addAll(stepPoints)
+                    }
+            }
+        }
+
+        return routePoints.toTypedArray()
+    }
+
+    /**
+     * Lifecycle Events
+     */
+    override fun onLowMemory() {
+        super.onLowMemory()
+        mapView.onLowMemory()
+    }
+
+    override fun onStart() {
+        super.onStart()
+
+        // register event listeners
+        mapboxNavigation.registerRoutesObserver(routesObserver)
+        mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
+        mapboxNavigation.registerLocationObserver(locationObserver)
+        mapboxNavigation.registerVoiceInstructionsObserver(voiceInstructionsObserver)
+        mapboxNavigation.registerRouteProgressObserver(replayProgressObserver)
+
+//        if (mapboxNavigation.getNavigationRoutes().toDirectionsRoutes().isEmpty()) {
+//            mapboxReplayer.pushEvents(
+//                listOf(
+//                    ReplayRouteMapper.mapToUpdateLocation(
+//                        eventTimestamp = 0.0,
+//                        point = Point.fromLngLat(
+//                            -122.39726512303575,
+//                            37.785128345296805
+//                        )
+//                    )
+//                )
+//            )
+//            mapboxReplayer.playFirstLocation()
+//        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+
+        clearRouteAndStopNavigation()
+
+        // unregister event listeners to prevent leaks or unnecessary resource consumption
+        mapboxNavigation.unregisterRoutesObserver(routesObserver)
+        mapboxNavigation.unregisterRouteProgressObserver(routeProgressObserver)
+        mapboxNavigation.unregisterLocationObserver(locationObserver)
+        mapboxNavigation.unregisterVoiceInstructionsObserver(voiceInstructionsObserver)
+        mapboxNavigation.unregisterRouteProgressObserver(replayProgressObserver)
+
+
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        clearRouteAndStopNavigation()
+
+        MapboxNavigationProvider.destroy()
+        mapboxReplayer.finish()
+        maneuverApi.cancel()
+        routeLineApi.cancel()
+        routeLineView.cancel()
+        speechApi.cancel()
+        voiceInstructionsPlayer.shutdown()
+        MAP_READY = false
+        VEHICLE_PROFILE = 0.0
+    }
+
+    override fun onBackPressed() {
+        super.onBackPressed()
+        clearRouteAndStopNavigation()
+        finish()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        locationPermissionHelper.onRequestPermissionsResult(
+            requestCode,
+            permissions,
+            grantResults
+        )
+    }
+
+    private fun startSimulation(route: DirectionsRoute) {
+        mapboxReplayer.run {
+            stop()
+            clearEvents()
+            val replayEvents = ReplayRouteMapper().mapDirectionsRouteGeometry(route)
+            pushEvents(replayEvents)
+            seekTo(replayEvents.first())
+            play()
+        }
+    }
+
+    private fun initiateAR() {
+
+        try {
+            arLocationEngine.requestLocationUpdates(
+                arLocationEngineRequest,
+                locationCallback,
+                mainLooper
+            )
+
+
+        } catch (se: SecurityException) {
+            VisionLogger.e(ASTAR, se.toString())
+            Log.e(ASTAR, "Security exception with AR. ${se.message} and cause = ${se.cause}")
+        }
+
+
+    }
+
+    private fun startVisionManager(route: DirectionsRoute) {
+
+        try {
+            if (!visionManagerWasInit) {
+                // Create and start VisionManager.
+                VisionManager.create()
+
+                VisionManager.start()
+                VisionManager.visionEventsListener = object : VisionEventsListener {}
+
+
+                VisionArManager.create(VisionManager)
+
+                mapboxArView.setArManager(VisionArManager)
+                setArRenderOptions(mapboxArView)
+
+                visionManagerWasInit = true
+
+                VisionArManager.setRoute(
+                    Route(
+                        route.getRoutePoints(),
+                        route.duration().toFloat(),
+                        "STREET_NAME",
+                    )
+                )
+
+                mapboxArView.visibility = View.VISIBLE
+                mapView.visibility = View.GONE
+
+
+            }
+        } catch (e: java.lang.Exception) {
+            Log.e(ASTAR, "Exception in starting AR manager ${e.cause} and ${e.message}")
+        }
+
+    }
+
+    private fun stopVisionManager() {
+        if (visionManagerWasInit) {
+            VisionArManager.destroy()
+            VisionManager.stop()
+            VisionManager.destroy()
+            visionManagerWasInit = false
+        }
+    }
+
+    private fun setArRenderOptions(visionArView: VisionArView) {
+        // enable fence rendering
+        visionArView.setFenceVisible(true)
     }
 
     private fun makeContour(style: Style, body: FeatureCollection) {
@@ -1463,6 +1817,27 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
         style.addLayerBelow(isochroneLineLayer, MAP_CLICK_MARKER_LAYER_ID)
     }
 
+    /**Simple Car Route
+     */
+    private fun addAnnotationToMap(
+        nodeLongitude: Double,
+        nodeLatitude: Double
+    ) {
+
+        UiUtils().bitmapFromDrawableRes(
+            this,
+            R.drawable.ic_baseline_location_on_24
+        )?.let {
+            val annotationApi = mapView.annotations
+            val pointAnnotationManager = annotationApi.createPointAnnotationManager()
+
+            val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
+                .withPoint(Point.fromLngLat(nodeLongitude, nodeLatitude))
+                .withIconImage(it)
+            pointAnnotationManager.create(pointAnnotationOptions)
+        }
+    }
+
     private fun findRoute(point: Point) {
 
         Toast.makeText(this, point.toJson().toString(), Toast.LENGTH_LONG).show()
@@ -1517,406 +1892,5 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
         )
 
     }
-
-    private fun astarRouteSelection(destinationPoint: Point) {
-
-
-        if (close_list_points.isEmpty()) {
-            return findRoute(destinationPoint)
-        }
-
-
-        val originLocation = navigationLocationProvider.lastLocation
-        val originPoint = originLocation?.let {
-            Point.fromLngLat(it.longitude, it.latitude)
-        } ?: return
-
-        if (close_list_points.last() != destinationPoint) {
-            close_list_points.add(destinationPoint)
-        }
-
-
-
-        Log.e(ASTAR, "Directional API close_list  $close_list_points")
-
-
-        mapboxNavigation.requestRoutes(
-            RouteOptions.builder()
-                .applyDefaultNavigationOptions()
-                .applyLanguageAndVoiceUnitOptions(this)
-                .coordinatesList(close_list_points.toList())
-                .bearingsList(
-                    MapUtils.getDirectionBearings(originLocation, close_list_points).toList()
-                )
-                .layersList(MapUtils.getDirectionLayers(close_list_points))
-                .build(),
-            object : RouterCallback {
-                override fun onRoutesReady(
-                    routes: List<DirectionsRoute>,
-                    routerOrigin: RouterOrigin
-                ) {
-
-
-                    setRouteAndStartNavigation(routes, originPoint, destinationPoint, routerOrigin)
-
-                }
-
-                override fun onFailure(
-                    reasons: List<RouterFailure>,
-                    routeOptions: RouteOptions
-                ) {
-
-                    Log.e(
-                        ASTAR,
-                        "Failed Direction API because $reasons"
-                    )
-                    Toast.makeText(
-                        this@NavigationActivity,
-                        "Failed = $reasons",
-                        Toast.LENGTH_LONG
-                    )
-                        .show()
-                }
-
-                override fun onCanceled(
-                    routeOptions: RouteOptions,
-                    routerOrigin: RouterOrigin
-                ) {
-                }
-            }
-        )
-
-    }
-
-    private fun setRouteAndStartNavigation(
-        routes: List<DirectionsRoute>,
-        sourcePoint: Point,
-        destinationPoint: Point,
-        routerOrigin: RouterOrigin
-    ) {
-
-        NAVIGATION_IN_PROGRESS = true
-        mapboxNavigation.setNavigationRoutes(routes.toNavigationRoutes(routerOrigin))
-
-        startSimulation(routes.first())
-
-        val pathUtil = PathUtils()
-        pathUtil.modelIntermediateRoute(
-            routes,
-            this,
-            resources.getString(R.string.mapbox_access_token)
-        )
-
-        pathUtil.ELEVATION_STATUS.observe(this, Observer { elevationCompleted ->
-            if (elevationCompleted == true) {
-
-                mtbExtraLims.visibility = View.VISIBLE
-
-                mtbExtraLims.text = resources.getString(
-                    R.string.profileparams,
-                    "${pathUtil.maneuverStatistics + pathUtil.elevationStatistics}"
-                ) + "\n+$VEHICLE_PROFILE"
-
-                pathUtil.ELEVATION_STATUS.value = false
-            }
-        })
-
-
-        /** show UI elements*/
-        findViewById<MapboxSoundButton>(R.id.soundButton).visibility = View.VISIBLE
-        findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).visibility =
-            View.VISIBLE
-        findViewById<CardView>(R.id.tripProgressCard).visibility = View.VISIBLE
-        /** move the camera to overview when new route is available */
-        navigationCamera.requestNavigationCameraToOverview()
-
-        val route = routes.first()
-        startVisionManager(route)
-
-    }
-
-    private fun addAnnotationToMap(
-        nodeLongitude: Double,
-        nodeLatitude: Double
-    ) {
-
-        UiUtils().bitmapFromDrawableRes(
-            this,
-            R.drawable.ic_baseline_location_on_24
-        )?.let {
-            val annotationApi = mapView.annotations
-            val pointAnnotationManager = annotationApi.createPointAnnotationManager()
-
-            val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
-                .withPoint(Point.fromLngLat(nodeLongitude, nodeLatitude))
-                .withIconImage(it)
-            pointAnnotationManager.create(pointAnnotationOptions)
-        }
-    }
-
-    override fun onStart() {
-        super.onStart()
-
-        // register event listeners
-        mapboxNavigation.registerRoutesObserver(routesObserver)
-        mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
-        mapboxNavigation.registerLocationObserver(locationObserver)
-        mapboxNavigation.registerVoiceInstructionsObserver(voiceInstructionsObserver)
-        mapboxNavigation.registerRouteProgressObserver(replayProgressObserver)
-
-//        if (mapboxNavigation.getNavigationRoutes().toDirectionsRoutes().isEmpty()) {
-//            mapboxReplayer.pushEvents(
-//                listOf(
-//                    ReplayRouteMapper.mapToUpdateLocation(
-//                        eventTimestamp = 0.0,
-//                        point = Point.fromLngLat(
-//                            -122.39726512303575,
-//                            37.785128345296805
-//                        )
-//                    )
-//                )
-//            )
-//            mapboxReplayer.playFirstLocation()
-//        }
-    }
-
-    override fun onStop() {
-        super.onStop()
-
-        //Clear viewmodel observers
-        clearRoute()
-        clearObservers()
-        // unregister event listeners to prevent leaks or unnecessary resource consumption
-        mapboxNavigation.unregisterRoutesObserver(routesObserver)
-        mapboxNavigation.unregisterRouteProgressObserver(routeProgressObserver)
-        mapboxNavigation.unregisterLocationObserver(locationObserver)
-        mapboxNavigation.unregisterVoiceInstructionsObserver(voiceInstructionsObserver)
-        mapboxNavigation.unregisterRouteProgressObserver(replayProgressObserver)
-
-        destinationSearchPoint = null
-        initialSOC = null
-
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        clearObservers()
-        MapboxNavigationProvider.destroy()
-        mapboxReplayer.finish()
-        maneuverApi.cancel()
-        routeLineApi.cancel()
-        routeLineView.cancel()
-        speechApi.cancel()
-        voiceInstructionsPlayer.shutdown()
-        MAP_READY = false
-        VEHICLE_PROFILE = 0.0
-    }
-
-    private fun clearRouteAndStopNavigation() {
-        /** clear*/
-        /** clear*/
-        mapboxNavigation.setNavigationRoutes(listOf<DirectionsRoute>().toNavigationRoutes())
-
-
-        /** stop simulation*/
-        mapboxReplayer.stop()
-
-        /** hide UI elements*/
-        findViewById<MapboxSoundButton>(R.id.soundButton).visibility = View.INVISIBLE
-        findViewById<MapboxManeuverView>(R.id.maneuverView).visibility = View.INVISIBLE
-        findViewById<MapboxRouteOverviewButton>(R.id.routeOverview).visibility =
-            View.INVISIBLE
-        findViewById<CardView>(R.id.tripProgressCard).visibility = View.INVISIBLE
-        mtbExtraLims.visibility = View.GONE
-
-        currentPoint = null
-        currentFeatures = null
-        currentState = DLSState(currentPoint, currentFeatures)
-        isochroneStateList = mutableListOf<DLSState>()
-        isochroneCenters = mutableListOf<Point>()
-        contourFeatures = mutableListOf<FeatureCollection>()
-
-        clearRoute()
-        NAVIGATION_IN_PROGRESS = false
-
-        //Stop VisioManager
-        stopVisionManager()
-
-    }
-
-    private fun startSimulation(route: DirectionsRoute) {
-        mapboxReplayer.run {
-            stop()
-            clearEvents()
-            val replayEvents = ReplayRouteMapper().mapDirectionsRouteGeometry(route)
-            pushEvents(replayEvents)
-            seekTo(replayEvents.first())
-            play()
-        }
-    }
-
-    override fun onLowMemory() {
-        super.onLowMemory()
-        mapView.onLowMemory()
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        locationPermissionHelper.onRequestPermissionsResult(
-            requestCode,
-            permissions,
-            grantResults
-        )
-    }
-
-    private fun clearRoute() {
-
-        clearObservers()
-        priorityQueue.clear()
-        nodeMap.clear()
-        stationMap.clear()
-        countIso = 0
-        outputLog = ""
-        elevationMap.clear()
-        close_list_points.clear()
-
-    }
-
-    private fun clearElevationObserver() {
-        viewmodel.successfulMapboxTileQuery.removeObservers(this)
-        viewmodel.successfulMapboxTileQuery.value = null
-        viewmodel.messageMapboxTileQuery.removeObservers(this)
-        viewmodel.messageMapboxTileQuery.value = null
-        viewmodel.tileQueryMapboxFeature.removeObservers(this)
-        viewmodel.tileQueryMapboxFeature.value = null
-    }
-
-    private fun clearObservers() {
-
-        clearElevationObserver()
-        viewmodel.successfulGeocode.removeObservers(this)
-        viewmodel.successfulGeocode.value = null
-        viewmodel.successfulMapboxIsochrone.removeObservers(this)
-        viewmodel.successfulMapboxIsochrone.value = null
-        viewmodel.successfulIsochrone.removeObservers(this)
-        viewmodel.successfulIsochrone.value = null
-
-        viewmodel.messageGeocode.removeObservers(this)
-        viewmodel.messageGeocode.value = null
-        viewmodel.messageMapboxIsochrone.removeObservers(this)
-        viewmodel.messageMapboxIsochrone.value = null
-        viewmodel.messageIsochrone.removeObservers(this)
-        viewmodel.messageIsochrone.value = null
-
-        viewmodel.isochroneMapboxFeature.removeObservers(this)
-        viewmodel.isochroneMapboxFeature.value = null
-        viewmodel.isochronePolygonResponse.removeObservers(this)
-        viewmodel.isochronePolygonResponse.value = null
-        viewmodel.geocodeQueryResponse.removeObservers(this)
-        viewmodel.geocodeQueryResponse.value = null
-
-
-    }
-
-    override fun onBackPressed() {
-        super.onBackPressed()
-        clearRouteAndStopNavigation()
-        clearObservers()
-        finish()
-    }
-
-    private companion object {
-
-        private const val PERMISSIONS_REQUEST_LOCATION = 0
-
-        fun Context.isPermissionGranted(permission: String): Boolean {
-            return ContextCompat.checkSelfPermission(
-                this, permission
-            ) == PackageManager.PERMISSION_GRANTED
-        }
-    }
-
-    private fun DirectionsRoute.getRoutePoints(): Array<RoutePoint> {
-        val routePoints = arrayListOf<RoutePoint>()
-        legs()?.forEach { leg ->
-            leg.steps()?.forEach { step ->
-                val maneuverPoint = RoutePoint(
-                    GeoCoordinate(
-                        latitude = step.maneuver().location().latitude(),
-                        longitude = step.maneuver().location().longitude()
-                    ),
-                    step.maneuver().type().mapToManeuverType()
-                )
-                routePoints.add(maneuverPoint)
-
-                step.geometry()
-                    ?.buildStepPointsFromGeometry()
-                    ?.map { geometryStep ->
-                        RoutePoint(
-                            GeoCoordinate(
-                                latitude = geometryStep.latitude(),
-                                longitude = geometryStep.longitude()
-                            )
-                        )
-                    }
-                    ?.let { stepPoints ->
-                        routePoints.addAll(stepPoints)
-                    }
-            }
-        }
-
-        return routePoints.toTypedArray()
-    }
-
-    private fun startVisionManager(route: DirectionsRoute) {
-
-        try {
-            if (!visionManagerWasInit) {
-                // Create and start VisionManager.
-                VisionManager.create()
-
-                VisionManager.start()
-                VisionManager.visionEventsListener = object : VisionEventsListener {}
-
-
-                VisionArManager.create(VisionManager)
-
-                mapboxArView.setArManager(VisionArManager)
-                setArRenderOptions(mapboxArView)
-
-                visionManagerWasInit = true
-
-                VisionArManager.setRoute(
-                    Route(
-                        route.getRoutePoints(),
-                        route.duration().toFloat(),
-                        "POUN-START",
-                    )
-                )
-
-                mapboxArView.visibility = View.VISIBLE
-                mapView.visibility = View.GONE
-
-
-            }
-        } catch (e: java.lang.Exception) {
-            Log.e(ASTAR, "Exception in starting AR manager ${e.cause} and ${e.message}")
-        }
-
-    }
-
-    private fun stopVisionManager() {
-        if (visionManagerWasInit) {
-            VisionArManager.destroy()
-            VisionManager.stop()
-            VisionManager.destroy()
-            visionManagerWasInit = false
-        }
-    }
-
 
 }

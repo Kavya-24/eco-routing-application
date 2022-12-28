@@ -43,13 +43,13 @@ object InitOptions {
 
         cars.add(
             EVCar(
-                0, "Tesla", "1", EVCar.CarType(plugType = "A", 1, "tesla", chargingSpeed = 90.0)
+                0, "Tesla", "1", EVCar.CarType(plugType = "A", 1, "tesla", chargingSpeed = 100.0)
             )
         )
 
         cars.add(
             EVCar(
-                1, "Ola", "1", EVCar.CarType(plugType = "A", 2, "ola", chargingSpeed = 80.0)
+                1, "Ola", "1", EVCar.CarType(plugType = "A", 2, "ola", chargingSpeed = 95.0)
             )
         )
 
@@ -63,7 +63,7 @@ object InitOptions {
 
         cars.add(
             EVCar(
-                3, "Honda", "1", EVCar.CarType(plugType = "C", 3, "honda", chargingSpeed = 70.0)
+                3, "Honda", "1", EVCar.CarType(plugType = "C", 3, "honda", chargingSpeed = 100.0)
             )
         )
 

@@ -18,6 +18,7 @@ import com.mapbox.vision.mobile.core.models.position.GeoCoordinate
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import kotlin.math.sqrt
 
 @SuppressLint("LogNotTimber")
 class PathUtils {
@@ -39,8 +40,6 @@ class PathUtils {
 
         getElevationStatistics(context, ACCESS_TOKEN, 0)
 
-        Log.e("ASTAR-Maneuver", maneuverStatistics.toString())
-        Log.e("ASTAR-Elevation", elevationStatistics.toString())
 
     }
 
@@ -49,10 +48,8 @@ class PathUtils {
 
 
         legs()?.forEach { leg ->
-            Log.e("ASTAR", "\nAdding Leg")
             leg.steps()?.forEach { step ->
 
-                Log.e("ASTAR", "\n\tAdding Step")
                 val maneuverPoint = RoutePoint(
                     GeoCoordinate(
                         latitude = step.maneuver().location().latitude(),
@@ -82,12 +79,9 @@ class PathUtils {
 
 
 
-                Log.e(
-                    "ASTAR",
-                    "\tAdding ${ALPHA * maneuverPoint.maneuverType.mapToCostFactors()} from type = ${maneuverPoint.maneuverType} and distance = ${step.distance()}"
-                )
-
-                maneuverStatistics += ALPHA * maneuverPoint.maneuverType.mapToCostFactors()
+                //ALPHA = -10. If Maneuver is bad, cost has to increase and hence negative effect, else positive effect to decrease cost.
+                //If the distance(in meters) on which this effect is observed, th greater the effect
+                maneuverStatistics += ALPHA * maneuverPoint.maneuverType.mapToCostFactors() * (sqrt(step.distance()))
 
             }
         }
@@ -179,7 +173,7 @@ class PathUtils {
             f += x.getStringProperty("ele").toInt()
         }
 
-        Log.e("ASTAR", "Elevation = ${f / features.size}")
+
         return f / features.size
 
     }

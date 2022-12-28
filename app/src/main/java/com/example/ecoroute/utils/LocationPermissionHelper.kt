@@ -1,7 +1,10 @@
 package com.example.ecoroute.utils
 
 import android.app.Activity
+import android.content.Context
+import android.content.pm.PackageManager
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import com.mapbox.android.core.permissions.PermissionsListener
 import com.mapbox.android.core.permissions.PermissionsManager
 import java.lang.ref.WeakReference
@@ -38,7 +41,14 @@ class LocationPermissionHelper(val activity: WeakReference<Activity>) {
         permissions: Array<String>,
         grantResults: IntArray
     ) {
-            permissionsManager.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        permissionsManager.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
+    }
+
+
+    fun isPermissionGranted(ctx: Context, permission: String): Boolean {
+        return ContextCompat.checkSelfPermission(
+            ctx, permission
+        ) == PackageManager.PERMISSION_GRANTED
     }
 }

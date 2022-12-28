@@ -44,7 +44,7 @@
         mapbox:layout_constraintTop_toTopOf="parent"
         mapbox:mapbox_cameraTargetLat="25.5357"
         mapbox:mapbox_cameraTargetLng="84.8512"
-        mapbox:mapbox_cameraZoom="14" />
+        mapbox:mapbox_cameraZoom="15" />
 
     <com.mapbox.vision.ar.view.gl.VisionArView
         android:id="@+id/mapbox_ar_view"

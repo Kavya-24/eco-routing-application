@@ -18,31 +18,38 @@ import java.lang.Double.min
 
 object MapUtils {
 
-    val MAXIMUM_CHARGE = 60
-    val MAXIMUM_THRESHOLD = 10000
+    //Maximum number of children we will take for each source after considering backtracking
     val MAXIMUM_NODES = 3
+
+    //WRT minutes travelled
+    val MAXIMUM_CHARGE = 60
+    fun convertChargeToSOC(initialSOC: Double): Int {
+        return (initialSOC * 0.6).toInt()
+    }
+
+
+    //Constraint Engineering
+    fun getCenter(o1: Point, o2: Point): Point {
+        return Point.fromLngLat(
+            (o1.longitude() + o2.longitude()) / 2, (o1.latitude() + o2.latitude()) / 2
+        )
+    }
+
+    //Vehicle Profile
+    val CAR_AGE_THETA = 1
+    val CAR_PASSENGER_THETA = 0.01
+
+
+    val MAXIMUM_THRESHOLD = 10000
     val MAXIMUM_STATION_NODES = 5
     val MAXIMUM_FOUND = 20
 
     val ALPHA = -10
     val BETA = 10
 
-    val CAR_AGE_THETA = 1
-    val CAR_PASSENGER_THETA = 0.01
-    val CAR_TESLA_THETA = 0.025
-    val CAR_FORD_THETA = 0.020
 
     val compareByHeuristic: Comparator<Node> = compareBy { it.g_n + it.h_n }
-    fun convertChargeToSOC(initialSOC: Double): Int {
-        return (initialSOC * 0.6).toInt()
-    }
 
-    fun getCenter(o1: Point, o2: Point): Point {
-
-        return Point.fromLngLat(
-            (o1.longitude() + o2.longitude()) / 2, (o1.latitude() + o2.latitude()) / 2
-        )
-    }
 
     fun pointInAdmissibleCircle(c1: Point, p: Point, r: Double): Boolean {
         val distanceToCenter = TurfMeasurement.distance(c1, p)
