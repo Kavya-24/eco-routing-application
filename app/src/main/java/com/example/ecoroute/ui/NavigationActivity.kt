@@ -467,6 +467,9 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
     }
 
     private fun createDialog(originPoint: Point, style: Style) {
+
+        clearRouteAndStopNavigation()
+
         val d = AlertDialog.Builder(this)
         val v = layoutInflater.inflate(R.layout.navigation_search, null)
         d.setView(v)
@@ -542,6 +545,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                     resources.getString(R.string.charging) + " " + slider.value.toInt()
                         .toString() + "%"
             }
+
         })
 
 
@@ -1034,7 +1038,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
     }
 
     private fun astarInitiate(originPoint: Point, destinationPoint: Point, style: Style) {
-        clearRouteAndStopNavigation()
+
 
         val soc = if (initialSOC != null) {
             Log.e(ASTAR, "Initial SOC: $initialSOC")
@@ -1655,6 +1659,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
         sourceSearchPoint = null
         destinationSearchPoint = null
         initialSOC = null
+        CAR_IDX = null
 
     }
 
@@ -1758,11 +1763,12 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
         super.onStart()
 
         // register event listeners
-        mapboxNavigation.registerRoutesObserver(routesObserver)
-        mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
-        mapboxNavigation.registerLocationObserver(locationObserver)
-        mapboxNavigation.registerVoiceInstructionsObserver(voiceInstructionsObserver)
-        mapboxNavigation.registerRouteProgressObserver(replayProgressObserver)
+        try {
+            mapboxNavigation.registerRoutesObserver(routesObserver)
+            mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
+            mapboxNavigation.registerLocationObserver(locationObserver)
+            mapboxNavigation.registerVoiceInstructionsObserver(voiceInstructionsObserver)
+            mapboxNavigation.registerRouteProgressObserver(replayProgressObserver)
 
 //        if (mapboxNavigation.getNavigationRoutes().toDirectionsRoutes().isEmpty()) {
 //            mapboxReplayer.pushEvents(
@@ -1778,6 +1784,9 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 //            )
 //            mapboxReplayer.playFirstLocation()
 //        }
+        } catch (e : Exception){
+            Toast.makeText(this, "Restart the application after giving location permissions", Toast.LENGTH_SHORT).show()
+        }
     }
 
     override fun onStop() {
