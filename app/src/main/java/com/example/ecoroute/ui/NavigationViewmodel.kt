@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.ecoroute.interfaces.RetrofitClient
+import com.example.ecoroute.models.responses.EVStationResponse
 import com.example.ecoroute.models.responses.GeoCodedQueryResponse
 import com.example.ecoroute.utils.MapUtils
 import com.example.ecoroute.utils.UiUtils
@@ -23,6 +24,7 @@ class NavigationViewModel : ViewModel() {
     val TAG = "ASTAR VIEWMODEL"
 
     private val mapboxInterfaceService = RetrofitClient.navigationAPICalls()
+    private val tomtomInterfaceService = RetrofitClient.navigateTOMTOMApis()
 
 
     val successfulGeocode: MutableLiveData<Boolean> = MutableLiveData()
@@ -70,6 +72,51 @@ class NavigationViewModel : ViewModel() {
         return geocodeQueryResponse
     }
 
+
+    val successfulEVStations: MutableLiveData<Boolean> = MutableLiveData()
+    var messageEVStations: MutableLiveData<String> = MutableLiveData()
+    var evStationResponse: MutableLiveData<EVStationResponse> =
+        MutableLiveData()
+
+    fun getEvStations(url: String): MutableLiveData<EVStationResponse> {
+        evStationResponse = getEVStationOnGeoBias(url)
+        return evStationResponse
+    }
+
+    private fun getEVStationOnGeoBias(url: String): MutableLiveData<EVStationResponse> {
+
+        Log.e(TAG, "TomTomURL $url")
+
+        tomtomInterfaceService.getEVStations(tom_tom_url = url)
+            .enqueue(object : retrofit2.Callback<EVStationResponse> {
+                override fun onResponse(
+                    call: Call<EVStationResponse>,
+                    response: Response<EVStationResponse>
+                ) {
+
+                    if (response.body() != null) {
+                        Log.e(TAG, "Geocode query response message = ${response.message()}")
+                        evStationResponse.value = response.body()
+                        successfulEVStations.value = true
+                        messageEVStations.value = response.message()
+                    } else {
+                        successfulEVStations.value = false
+                        messageEVStations.value = response.message()
+                    }
+
+                }
+
+                override fun onFailure(call: Call<EVStationResponse>, t: Throwable) {
+                    successfulGeocode.value = false
+                    messageGeocode.value = UiUtils().returnStateMessageForThrowable(t)
+
+                    UiUtils().logThrowables(TAG , t)
+
+                }
+            })
+
+        return evStationResponse
+    }
 
     val successfulMapboxIsochrone: MutableLiveData<Boolean> = MutableLiveData()
     var messageMapboxIsochrone: MutableLiveData<String> = MutableLiveData()

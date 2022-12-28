@@ -26,6 +26,7 @@ import com.example.ecoroute.adapters.EVCarsListAdapter
 import com.example.ecoroute.adapters.OnItemClickListener
 import com.example.ecoroute.models.EVCar
 import com.example.ecoroute.models.astar.Node
+import com.example.ecoroute.models.responses.EVStationResponse
 import com.example.ecoroute.models.responses.GeoCodedQueryResponse
 import com.example.ecoroute.utils.*
 import com.example.ecoroute.utils.MapUtils.CAR_AGE_THETA
@@ -1104,6 +1105,10 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                             FeatureCollection.fromFeature(currentNode.features!!.get(0))
                         )
                         countIso++
+                        val extremeRadius = MapUtils.extremeRadiusFromIsochroneFeature(
+                            mReponse,
+                            currentNode.node_point
+                        )
 
                         if (astar_checkDestination(currentNode, destinationNode)) {
                             //The destination lies here
@@ -1122,7 +1127,13 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
                         } else {
                             //Else the destination does not lie here.
-                            astar_callGeocode(currentNode, destinationNode, style, mReponse)
+                            astar_callForEVStations(
+                                currentNode,
+                                destinationNode,
+                                style,
+                                mReponse,
+                                extremeRadius
+                            )
                         }
 
 
@@ -1149,6 +1160,154 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                 "Called for Isochrone with currentPoint = NULL"
             )
             UiUtils().showSnackbar(csl_view, "Can not reach destination with supplied SOC")
+        }
+
+    }
+
+
+    private fun astar_callForEVStations(
+        currentNode: Node,
+        destinationNode: Node,
+        style: Style,
+        isochroneResponse: List<Feature>,
+        extremeRadius: Int
+    ) {
+
+        clearEVStationObservsers()
+
+        viewmodel.getEvStations(
+            evStationQueryBuilder(currentNode.node_point!!, currentNode.features, extremeRadius)
+        )
+            .observe(this, Observer { mReponse ->
+
+                if (viewmodel.evStationResponse.value != null) {
+                    UiUtils().hideProgress(csl_view, pb, this)
+                    if (mReponse != null) {
+
+
+                        astar_findAdmissibleEVStations(
+                            mReponse,
+                            currentNode,
+                            destinationNode,
+                            style,
+                            isochroneResponse
+                        )
+                        if (priorityQueue.isEmpty()) {
+
+                            Log.e(
+                                ASTAR,
+                                "\nNo valid stations found. Can not reach destination point ${destinationNode.node_point!!}"
+                            )
+
+                            UiUtils().showSnackbar(csl_view, "Can not reach destination.")
+
+                        } else {
+
+                            Log.e(
+                                ASTAR,
+                                "\nUsing " + priorityQueue.peek()!!.node_point.toString() + " as a station after " + (stationMap[priorityQueue.peek()!!.node_point]?.minus(
+                                    1
+                                )).toString() + " stations"
+                            )
+
+                            astar_callIsochrone(priorityQueue.peek()!!, destinationNode, style)
+                        }
+
+
+                    } else {
+
+                        Log.e(
+                            ASTAR,
+                            "Failed Geocode with currentPoint = ${currentNode.node_point} and message ${viewmodel.messageEVStations.value.toString()}"
+                        )
+                    }
+                } else {
+                    UiUtils().showProgress(csl_view, pb, this)
+                }
+
+
+            })
+
+    }
+
+
+    private fun astar_findAdmissibleEVStations(
+        mReponse: EVStationResponse,
+        currentNode: Node,
+        destinationNode: Node,
+        style: Style,
+        isochroneResponse: List<Feature>
+    ) {
+        if (!priorityQueue.isEmpty()) {
+
+
+            if (currentNode.node_point != null) {
+
+                //Remove the currentNode from pq and add in node map as consumed stations
+                priorityQueue.remove().node_point?.let { nodeMap.add(it) }
+
+                val parent_gn = currentNode.g_n
+                var p: Point? = null
+                var p_gn = 0.0
+                var eData = 0.0
+                var p_hn = 0.0
+                var pNode = Node(null, 0.0, 0.0, 0, null)
+
+                val childrenPrirorityQueue = PriorityQueue<Node>(compareByHeuristic)
+
+                for (e in 0 until mReponse.results.size) {
+
+                    p = Point.fromLngLat(
+                        mReponse.results[e].position.lon,
+                        mReponse.results[e].position.lat
+                    )
+
+
+                    /**
+                     * We have already counted this.
+                     * Or it is really far away from destination and lies outside the circle
+                     * Or it lies outside the reachable distance from the current source
+                     */
+                    if (nodeMap.contains(p) || !evaluateDestination(p, isochroneResponse)
+                    ) {
+                        continue
+                    }
+
+
+                    currentHeight = 0
+                    nextHeight = 0
+                    eData = 0.0
+
+                    p_gn = mReponse.results[e].dist + parent_gn + eData
+                    p_hn = eucledianDistance(p, destinationNode.node_point!!)
+                    pNode = Node(
+                        p,
+                        p_gn,
+                        p_hn,
+                        convertChargeToSOC(CAR_IDX!!.carType.chargingSpeed),
+                        null
+                    )
+
+                    childrenPrirorityQueue.add(pNode)
+
+                }
+
+                var cnt = MAXIMUM_NODES
+                while (!childrenPrirorityQueue.isEmpty() && cnt > 0) {
+
+                    //If already seen
+                    if (stationMap.containsKey(childrenPrirorityQueue.peek()?.node_point!!)) {
+                        childrenPrirorityQueue.remove()
+                        continue
+                    }
+
+                    priorityQueue.add(childrenPrirorityQueue.peek())
+                    stationMap[childrenPrirorityQueue.peek()!!.node_point!!] = countIso
+                    childrenPrirorityQueue.remove()
+                    cnt--
+                }
+
+            }
         }
 
     }
@@ -1219,6 +1378,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
             })
 
     }
+
 
     private fun atstar_findAdmissibleNodes(
         mReponse: GeoCodedQueryResponse,
@@ -1323,6 +1483,17 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
             MapUtils.generateBBOXFromFeatures(featureList),
             resources.getString(R.string.mapbox_access_token)
         )
+    }
+
+    private fun evStationQueryBuilder(
+        nodePoint: Point,
+        features: List<Feature>?,
+        extremeRadius: Int
+    ): String {
+        return "https://api.tomtom.com/search/2/poiSearch/charging%20station.json?key=aDPKODZS35jvTep9pp35p4qULCJr6jvT&limit=200&countrySet=IN&lat=" + nodePoint.latitude()
+            .toString() + "&lon=" + nodePoint.longitude()
+            .toString() + "&radius=" + extremeRadius.toString()
+            .toString()
     }
 
     private fun evaluateDestination(
@@ -1527,9 +1698,19 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
     }
 
+    private fun clearEVStationObservsers() {
+        viewmodel.successfulEVStations.removeObservers(this)
+        viewmodel.successfulEVStations.value = null
+        viewmodel.messageEVStations.removeObservers(this)
+        viewmodel.messageEVStations.value = null
+        viewmodel.evStationResponse.removeObservers(this)
+        viewmodel.evStationResponse.value = null
+    }
+
     private fun clearObservers() {
         clearIsochroneObservers()
         clearGeocodeObservsers()
+        clearEVStationObservsers()
     }
 
 

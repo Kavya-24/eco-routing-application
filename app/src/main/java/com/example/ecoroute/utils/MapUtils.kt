@@ -40,16 +40,30 @@ object MapUtils {
     val CAR_PASSENGER_THETA = 0.01
 
 
-    val MAXIMUM_THRESHOLD = 10000
-    val MAXIMUM_STATION_NODES = 5
-    val MAXIMUM_FOUND = 20
-
     val ALPHA = -10
-    val BETA = 10
 
 
     val compareByHeuristic: Comparator<Node> = compareBy { it.g_n + it.h_n }
 
+    fun extremeRadiusFromIsochroneFeature(features: List<Feature>?, current_point: Point): Int {
+
+        if (features.isNullOrEmpty()) {
+            return 1000;
+        }
+        var max_radius = 0.0
+        var lat = 0.0
+        var lng = 0.0
+
+        val polygon = features.get(0).geometry() as Polygon
+        for (e in 0 until polygon.coordinates().get(0).size) {
+            lng = polygon.coordinates().get(0)[e].longitude()
+            lat = polygon.coordinates().get(0)[e].latitude()
+            max_radius =
+                max(max_radius, eucledianDistance(current_point, Point.fromLngLat(lng, lat)))
+        }
+
+        return (max_radius*1000 + 1000).toInt()
+    }
 
     fun pointInAdmissibleCircle(c1: Point, p: Point, r: Double): Boolean {
         val distanceToCenter = TurfMeasurement.distance(c1, p)

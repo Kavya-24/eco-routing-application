@@ -20,4 +20,13 @@ object RetrofitClient {
     }
 
 
+    val tomtomUrl = "https://api.tomtom.com/"
+    fun navigateTOMTOMApis(): tomtomInterface {
+        return Retrofit.Builder()
+            .baseUrl(tomtomUrl)
+            .addConverterFactory(MoshiConverterFactory.create())
+            .addCallAdapterFactory(CoroutineCallAdapterFactory())
+            .build().create(tomtomInterface::class.java)
+    }
+
 }

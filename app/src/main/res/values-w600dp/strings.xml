@@ -13,14 +13,16 @@
     <string name="title_activity_start_navigation">StartNavigationActivity</string>
 
 
-    <!--    API and Interfaces-->
     <string name="mapbox_access_token">pk.eyJ1Ijoia2F2eWEtMjQiLCJhIjoiY2w2Y2xhc2JpMW80MjNrcDNuZ3hwdDVxNSJ9.yRixm6cK2FVMVYiBk8AbDw</string>
+    <string name="tomtom_access_token">aDPKODZS35jvTep9pp35p4qULCJr6jvT</string>
     <string name="mapbox_directions_route">directions/v5/mapbox/%s/%s?geometries=%s&amp;access_token=%s</string>
     <string name="mapbox_isochrone_polygon">isochrone/v1/%s/%s?contours_meters=%s&amp;contours_colors=%s&amp;polygons=%s&amp;access_token=%s</string>
     <string name="mapbox_geocode_query">geocoding/v5/%s/%s?proximity=%s&amp;bbox=%s&amp;access_token=%s</string>
     <string name="mapbox_tilequry_query">v4/mapbox.mapbox-terrain-v2/tilequery/%s?&amp;access_token=%s</string>
+    <string name="tomtom_ev_station_query">search/2/poiSearch/charging%20station.json?key=%s&amp;limit=100&amp;countrySet=IN&amp;lat=%s&amp;lon=%s&amp;radius=%s</string>
     <string name="ev_geocode_query">coffee.json</string>
     <string name="driving_profile">mapbox/driving</string>
+
 
     <!--#Errors-->
     <string name="error_please_check_internet">Please check your internet connection</string>
