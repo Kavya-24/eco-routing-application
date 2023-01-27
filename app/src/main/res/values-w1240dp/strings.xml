@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">EcoRoute</string>
     <string name="title_home">Home</string>
-    <string name="title_dashboard">Dashboard</string>
+    <string name="title_route">Dashboard</string>
     <string name="title_user">User</string>
     <string name="choose_start_location">Choose start location</string>
     <string name="choose_dst_location">Choose destination</string>
@@ -59,6 +59,11 @@
     <string name="my_cars">My Cars</string>
     <string name="car_1">Car 1</string>
     <string name="demo_connector">IEC60309AC1PhaseBlue</string>
+    <string name="charging_percentage_20">Charging Percentage: 20%</string>
+    <string name="petrol">Petrol</string>
+    <string name="time">Time</string>
+    <string name="energy">Energy</string>
+    <string name="navigate">Navigate</string>
 
 
 </resources>

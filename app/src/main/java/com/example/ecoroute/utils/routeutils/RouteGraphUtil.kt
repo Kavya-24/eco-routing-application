@@ -159,6 +159,5 @@ object RouteGraphUtil {
     }
 
 
-    //TODO: https://docs.mapbox.com/api/maps/tilequery/ use this API for finding the elevations of in-between geometries
 
 }

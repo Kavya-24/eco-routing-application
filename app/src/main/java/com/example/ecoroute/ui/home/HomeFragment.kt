@@ -171,7 +171,6 @@ class HomeFragment : Fragment() {
         Log.e(TAG, "Marking ${mResponse.size} stations")
         pointAnnotationManager.deleteAll()
         for (stations in mResponse) {
-            Log.e(TAG, "$stations")
             attachMarkers(stations.position.lat, stations.position.lon)
         }
 

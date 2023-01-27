@@ -1,0 +1,18 @@
+
+
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+<item
+
+    android:bottom="3dp"
+    android:left="3dp"
+    android:right="3dp"
+    android:top="1dp">
+    <selector>
+        <item android:drawable="@drawable/radio_unchecked_state" android:state_checked="true" android:state_pressed="true" />
+        <item android:drawable="@drawable/radio_checked_state" android:state_pressed="true" />
+        <item android:drawable="@drawable/radio_checked_state" android:state_checked="true" />
+        <item android:drawable="@drawable/radio_unchecked_state" />
+    </selector>
+
+</item>
+</layer-list>

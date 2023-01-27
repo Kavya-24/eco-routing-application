@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:mapbox="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/csl_route"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+
+    <com.mapbox.maps.MapView
+        android:id="@+id/mapViewRoute"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_constraintTop_toBottomOf="parent"
+        mapbox:layout_constraintStart_toStartOf="parent"
+        mapbox:layout_constraintTop_toTopOf="parent"
+        mapbox:mapbox_cameraTargetLat="25.5357"
+        mapbox:mapbox_cameraTargetLng="84.8512"
+        mapbox:mapbox_cameraZoom="12" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/mtbOpenDialog"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space"
+        android:background="@drawable/right_button"
+        app:icon="@drawable/ic_baseline_arrow_back_ios_24"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ProgressBar
+        android:id="@+id/pbRoute"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/space_2x"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/csl_route_dialog"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        android:padding="@dimen/space">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/csl_src"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/til_src"
+                style="@style/ThemeOverlay.Material3.TextInputEditText.OutlinedBox.Dense"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/space"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_src"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:hint="@string/choose_source" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.mapbox.search.ui.view.SearchResultsView
+                android:id="@+id/sv_src"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/space"
+                android:visibility="gone"
+                app:layout_constraintTop_toBottomOf="@id/til_src" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/csl_dst"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintTop_toBottomOf="@id/csl_src">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/til_dst"
+                style="@style/ThemeOverlay.Material3.TextInputEditText.OutlinedBox.Dense"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/space"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_dst"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:hint="@string/choose_dst_location" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.mapbox.search.ui.view.SearchResultsView
+                android:id="@+id/sv_dst"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/space"
+                android:layout_marginTop="@dimen/space_2x"
+                android:visibility="gone"
+                app:layout_constraintTop_toBottomOf="@id/til_dst" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+        <TextView
+            android:id="@+id/ecoroute_tvCharging"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
+            android:text="@string/charging_percentage_20"
+            android:textSize="16sp"
+            app:layout_constraintTop_toBottomOf="@id/csl_dst" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/ecoroute_slider"
+            style="@style/Myslider"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
+            android:contentDescription="@string/charge_slider_desc"
+            android:value="20"
+            android:valueFrom="0.0"
+            android:valueTo="100"
+            app:labelBehavior="withinBounds"
+            app:layout_constraintTop_toBottomOf="@id/ecoroute_tvCharging"
+            app:thumbColor="@color/colorGreen"
+            app:thumbStrokeColor="@color/colorGreenAlpha"
+            app:tickColor="@color/colorAccent"
+            app:trackColorActive="@color/colorGreen" />
+
+
+        <RadioGroup
+            android:id="@+id/rg"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
+            android:orientation="horizontal"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/ecoroute_slider">
+
+            <RadioButton
+                android:id="@+id/radio_petrol"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="false"
+                android:text="@string/petrol" />
+
+            <RadioButton
+                android:id="@+id/radio_energy"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="@string/energy" />
+
+            <RadioButton
+                android:id="@+id/radio_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="false"
+                android:text="@string/time" />
+
+        </RadioGroup>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/mtb_route_cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/cancel"
+            app:layout_constraintEnd_toStartOf="@id/mtb_navigate"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/rg"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/mtb_navigate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/navigate"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/mtb_route_cancel"
+            app:layout_constraintTop_toBottomOf="@id/rg"/>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
