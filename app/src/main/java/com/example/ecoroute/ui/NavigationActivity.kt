@@ -152,7 +152,7 @@ import kotlin.properties.Delegates
 class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
     private val ASTAR = "ASTAR"
-
+    private val uiUtilInstance = UiUtils()
 
     //AR Variables
     private lateinit var mapboxArView: VisionArView
@@ -169,13 +169,17 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
 
     private var NAVIGATION_IN_PROGRESS = false
-    private val locationCallback by lazy {
+    private val locationCallback =
         object : LocationEngineCallback<LocationEngineResult> {
-            override fun onSuccess(result: LocationEngineResult?) {}
+            override fun onSuccess(result: LocationEngineResult?) {
+                Log.e(ASTAR, "Succesfully initiated location callback")
+            }
 
-            override fun onFailure(exception: Exception) {}
+            override fun onFailure(exception: Exception) {
+                uiUtilInstance.logExceptions(ASTAR, exception)
+            }
         }
-    }
+
 
     //Navigational route variables
     private val priorityQueue =
@@ -816,34 +820,17 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
             }, object : Style.OnStyleLoaded {
                 override fun onStyleLoaded(style: Style) {
 
-                    UiUtils().bitmapFromDrawableRes(
-                        this@NavigationActivity,
-                        R.drawable.ic_baseline_location_on_24
-                    )?.let {
-                        style.addImage(
-                            MAP_CLICK_MARKER_ICON_ID, it
-                        )
-
-                    }
-
 
                     style.addSource(geoJsonSource(id = MAP_CLICK_SOURCE_ID))
                     style.addSource(geoJsonSource(ISOCHRONE_RESPONSE_GEOJSON_SOURCE_ID))
 
+
                     style.addLayer(symbolLayer(MAP_CLICK_MARKER_LAYER_ID, MAP_CLICK_SOURCE_ID) {
-                        iconImage(MAP_CLICK_MARKER_ICON_ID)
-                        iconIgnorePlacement(true)
-                        iconAllowOverlap(true)
-                        iconOffset(listOf(0.0, -4.0))
                     })
 
                     initLineLayer(style)
                     initFillLayer(style)
 
-                    val originLocation = navigationLocationProvider.lastLocation
-                    val originPoint = originLocation?.let {
-                        Point.fromLngLat(it.longitude, it.latitude)
-                    } ?: return
 
 
                     mapView.gestures.addOnMapClickListener {
@@ -1097,7 +1084,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
             ).observe(this, Observer { mReponse ->
 
                 if (viewmodel.isochroneMapboxFeature.value != null) {
-                    UiUtils().hideProgress(csl_view, pb, this)
+                    uiUtilInstance.hideProgress(csl_view, pb, this)
 
                     if (mReponse != null) {
                         //For this unvisited node
@@ -1121,7 +1108,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                                 "\nDestination found after station with center ${currentNode.node_point}"
                             )
 
-                            UiUtils().showSnackbar(
+                            uiUtilInstance.showSnackbar(
                                 csl_view,
                                 "Destination reached in $countIso step(s)"
                             )
@@ -1150,7 +1137,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                     }
                 } else {
 
-                    UiUtils().showProgress(csl_view, pb, this)
+                    uiUtilInstance.showProgress(csl_view, pb, this)
                 }
 
 
@@ -1163,7 +1150,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                 ASTAR,
                 "Called for Isochrone with currentPoint = NULL"
             )
-            UiUtils().showSnackbar(csl_view, "Can not reach destination with supplied SOC")
+            uiUtilInstance.showSnackbar(csl_view, "Can not reach destination with supplied SOC")
         }
 
     }
@@ -1185,7 +1172,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
             .observe(this, Observer { mReponse ->
 
                 if (viewmodel.evStationResponse.value != null) {
-                    UiUtils().hideProgress(csl_view, pb, this)
+                    uiUtilInstance.hideProgress(csl_view, pb, this)
                     if (mReponse != null) {
 
 
@@ -1203,7 +1190,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                                 "\nNo valid stations found. Can not reach destination point ${destinationNode.node_point!!}"
                             )
 
-                            UiUtils().showSnackbar(csl_view, "Can not reach destination.")
+                            uiUtilInstance.showSnackbar(csl_view, "Can not reach destination.")
 
                         } else {
 
@@ -1226,7 +1213,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                         )
                     }
                 } else {
-                    UiUtils().showProgress(csl_view, pb, this)
+                    uiUtilInstance.showProgress(csl_view, pb, this)
                 }
 
 
@@ -1334,7 +1321,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
             .observe(this, Observer { mReponse ->
 
                 if (viewmodel.geocodeQueryResponse.value != null) {
-                    UiUtils().hideProgress(csl_view, pb, this)
+                    uiUtilInstance.hideProgress(csl_view, pb, this)
                     if (mReponse != null) {
 
 
@@ -1352,7 +1339,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                                 "\nNo valid stations found. Can not reach destination point ${destinationNode.node_point!!}"
                             )
 
-                            UiUtils().showSnackbar(csl_view, "Can not reach destination.")
+                            uiUtilInstance.showSnackbar(csl_view, "Can not reach destination.")
 
                         } else {
 
@@ -1375,7 +1362,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
                         )
                     }
                 } else {
-                    UiUtils().showProgress(csl_view, pb, this)
+                    uiUtilInstance.showProgress(csl_view, pb, this)
                 }
 
 
@@ -1784,8 +1771,12 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 //            )
 //            mapboxReplayer.playFirstLocation()
 //        }
-        } catch (e : Exception){
-            Toast.makeText(this, "Restart the application after giving location permissions", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(
+                this,
+                "Restart the application after giving location permissions",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
@@ -1926,8 +1917,6 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
 
         if (source != null && body.features()!!.size > 0) {
             source.featureCollection(body)
-
-
         }
 
         //Line Layer
@@ -2014,7 +2003,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
         nodeLatitude: Double
     ) {
 
-        UiUtils().bitmapFromDrawableRes(
+        uiUtilInstance.bitmapFromDrawableRes(
             this,
             R.drawable.ic_baseline_location_on_24
         )?.let {
@@ -2027,6 +2016,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
             pointAnnotationManager.create(pointAnnotationOptions)
         }
     }
+
 
     private fun findRoute(point: Point) {
 

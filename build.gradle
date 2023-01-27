@@ -4,9 +4,8 @@ buildscript {
     ext.kotlin_version = '1.6.10'
     repositories {
         google()
-        jcenter()
         mavenCentral()
-
+        gradlePluginPortal()
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:4.0.2'
@@ -21,7 +20,6 @@ buildscript {
 allprojects {
     repositories {
         google()
-        jcenter()
         maven {
             url 'https://jitpack.io'
 
@@ -39,6 +37,7 @@ allprojects {
                 password = project.properties['EV_MAP_TOKEN2'] ?: ""
             }
         }
+        gradlePluginPortal()
     }
 }
 

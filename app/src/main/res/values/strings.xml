@@ -2,7 +2,7 @@
     <string name="app_name">EcoRoute</string>
     <string name="title_home">Home</string>
     <string name="title_dashboard">Dashboard</string>
-    <string name="title_notifications">Notifications</string>
+    <string name="title_user">User</string>
     <string name="choose_start_location">Choose start location</string>
     <string name="choose_dst_location">Choose destination</string>
     <string name="recharges">SOC: %s. Plug Type: %s</string>

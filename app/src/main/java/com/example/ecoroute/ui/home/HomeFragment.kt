@@ -1,214 +1,90 @@
 package com.example.ecoroute.ui.home
 
-import android.Manifest
-import android.app.AlertDialog
-import android.content.Context
-import android.content.pm.PackageManager
+
+import android.annotation.SuppressLint
+import android.location.Location
+import android.location.LocationManager
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import android.widget.AutoCompleteTextView
-import android.widget.TextView
-import androidx.appcompat.content.res.AppCompatResources
-import androidx.core.app.ActivityCompat
+import android.widget.ProgressBar
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Observer
 import com.example.ecoroute.R
+import com.example.ecoroute.models.responses.NearbyStationsResponse
+import com.example.ecoroute.utils.ApplicationUtils
 import com.example.ecoroute.utils.LocationPermissionHelper
-//import com.example.ecoroute.utils.LocationPermissionHelper
+import com.example.ecoroute.utils.URLBuilder
 import com.example.ecoroute.utils.UiUtils
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.google.android.material.slider.Slider
-import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.geojson.Point
-import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
+import com.mapbox.maps.MapboxMap
 import com.mapbox.maps.Style
-import com.mapbox.maps.extension.style.expressions.dsl.generated.interpolate
+import com.mapbox.maps.extension.style.layers.properties.generated.TextAnchor
+import com.mapbox.maps.extension.style.style
 import com.mapbox.maps.plugin.LocationPuck2D
-import com.mapbox.maps.plugin.gestures.OnMapClickListener
-import com.mapbox.maps.plugin.gestures.OnMoveListener
-import com.mapbox.maps.plugin.gestures.addOnMapClickListener
+import com.mapbox.maps.plugin.animation.camera
+import com.mapbox.maps.plugin.annotation.AnnotationPlugin
+import com.mapbox.maps.plugin.annotation.annotations
+import com.mapbox.maps.plugin.annotation.generated.PointAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.gestures.gestures
-import com.mapbox.maps.plugin.locationcomponent.OnIndicatorBearingChangedListener
-import com.mapbox.maps.plugin.locationcomponent.OnIndicatorPositionChangedListener
 import com.mapbox.maps.plugin.locationcomponent.location
-import com.mapbox.search.*
-import com.mapbox.search.result.SearchResult
-import com.mapbox.search.result.SearchSuggestion
+import com.mapbox.navigation.ui.maps.camera.NavigationCamera
+import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
+import com.mapbox.navigation.ui.maps.camera.lifecycle.NavigationBasicGesturesHandler
+import com.mapbox.navigation.ui.maps.location.NavigationLocationProvider
 import java.lang.ref.WeakReference
 
 
-class HomeFragment : Fragment(), OnMapClickListener  {
+@SuppressLint("LogNotTimber", "StringFormatInvalid", "SetTextI18n")
+class HomeFragment : Fragment() {
 
 
     private val TAG = HomeFragment::class.java.simpleName
-
-
     private lateinit var root: View
+    private val uiUtilInstance = UiUtils()
+    private val viewModel: HomeViewModel by viewModels()
+    private lateinit var pb: ProgressBar
+    private val ctx = ApplicationUtils.getContext()
+
+
+    private lateinit var homeMapView: MapView
+    private lateinit var homemapboxMap: MapboxMap
+    private lateinit var navigationCamera: NavigationCamera
+    private lateinit var viewportDataSource: MapboxNavigationViewportDataSource
+
+    private lateinit var annotationApi: AnnotationPlugin
+    private lateinit var pointAnnotationManager: PointAnnotationManager
+
+    private val navigationLocationProvider = NavigationLocationProvider()
     private lateinit var locationPermissionHelper: LocationPermissionHelper
 
-    private lateinit var searchEngine: SearchEngine
-    private lateinit var searchRequestTask: SearchRequestTask
+    private var currentLocation: Location? = null
+    private lateinit var locationManager: LocationManager
 
 
-    private var startLocationAdapter: ArrayAdapter<String>? = null
-    private var endLocationAdapter: ArrayAdapter<String>? = null
-
-    private val searchCallbackSource = object : SearchSelectionCallback {
-
-        override fun onSuggestions(
-            suggestions: List<SearchSuggestion>,
-            responseInfo: ResponseInfo
-        ) {
-
-
-            val str = mutableListOf<String>()
-            for (y in suggestions.indices) {
-                str.add(suggestions[y].name)
-
-            }
-            startLocationAdapter =
-                ArrayAdapter(
-                    requireContext(),
-                    android.R.layout.simple_dropdown_item_1line,
-                    str
-                )
-
-
-            et_start_location.setAdapter(startLocationAdapter)
-
-
-        }
-
-        override fun onResult(
-            suggestion: SearchSuggestion,
-            result: SearchResult,
-            responseInfo: ResponseInfo
-        ) {
-
-        }
-
-        override fun onCategoryResult(
-            suggestion: SearchSuggestion,
-            results: List<SearchResult>,
-            responseInfo: ResponseInfo
-        ) {
-
-        }
-
-        override fun onError(e: Exception) {
-
-        }
-    }
-    private val searchCallbackDestination = object : SearchSelectionCallback {
-
-        override fun onSuggestions(
-            suggestions: List<SearchSuggestion>,
-            responseInfo: ResponseInfo
-        ) {
-
-            val str = mutableListOf<String>()
-            for (y in suggestions.indices) {
-                str.add(suggestions[y].name)
-
-            }
-            endLocationAdapter =
-                ArrayAdapter(
-                    requireContext(),
-                    android.R.layout.simple_dropdown_item_1line,
-                    str
-                )
-
-
-            et_end_location.setAdapter(endLocationAdapter)
-
-        }
-
-        override fun onResult(
-            suggestion: SearchSuggestion,
-            result: SearchResult,
-            responseInfo: ResponseInfo
-        ) {
-
-        }
-
-        override fun onCategoryResult(
-            suggestion: SearchSuggestion,
-            results: List<SearchResult>,
-            responseInfo: ResponseInfo
-        ) {
-
-        }
-
-        override fun onError(e: Exception) {
-
-        }
-    }
-    private val reverseSearchCallback = object : SearchCallback {
-        override fun onResults(results: List<SearchResult>, responseInfo: ResponseInfo) {
-        }
-
-        override fun onError(e: Exception) {
-        }
-    }
-
-
-    private var originLocation: Point? = null
-
-    private val onIndicatorBearingChangedListener = OnIndicatorBearingChangedListener {
-        mapView.getMapboxMap().setCamera(CameraOptions.Builder().bearing(it).build())
-
-    }
-
-    private val onIndicatorPositionChangedListener = OnIndicatorPositionChangedListener {
-        mapView.getMapboxMap().setCamera(CameraOptions.Builder().center(it).build())
-        mapView.gestures.focalPoint = mapView.getMapboxMap().pixelForCoordinate(it)
-        originLocation = it
-    }
-
-    private val onMoveListener = object : OnMoveListener {
-        override fun onMoveBegin(detector: MoveGestureDetector) {
-            onCameraTrackingDismissed()
-        }
-
-        override fun onMove(detector: MoveGestureDetector): Boolean {
-            return false
-        }
-
-        override fun onMoveEnd(detector: MoveGestureDetector) {}
-    }
-
-
-    private lateinit var mapView: MapView
-
-    private lateinit var fab: FloatingActionButton
-
-
-    //Search Query View variables
-    private lateinit var _actvCar: AutoCompleteTextView
-    private lateinit var _chargeSlider: Slider
-    private lateinit var _startSearch: MaterialButton
-
-    private lateinit var et_start_location: AutoCompleteTextView
-    private lateinit var et_end_location: AutoCompleteTextView
-
-
+    private var FINDING_STATION = false
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
 
-        root = inflater.inflate(R.layout.fragment_home, container, false)
+        root = inflater.inflate(com.example.ecoroute.R.layout.fragment_home, container, false)
+        pb = root.findViewById(R.id.pbHome)
+        homeMapView = root.findViewById(R.id.mapViewHome)
+        homemapboxMap = homeMapView.getMapboxMap()
 
-        mapView = root.findViewById(R.id.mapView)
+        annotationApi = homeMapView.annotations
+        pointAnnotationManager = annotationApi.createPointAnnotationManager()
+
+
 
         locationPermissionHelper = LocationPermissionHelper(WeakReference(requireActivity()))
         locationPermissionHelper.checkPermissions {
@@ -216,300 +92,152 @@ class HomeFragment : Fragment(), OnMapClickListener  {
         }
 
 
-        fab = root.findViewById(R.id.fab_route)
-
-
-        fab.setOnClickListener {
-            if (originLocation != null) {
-                createSearchQueryFramework()
-            } else {
-                locationPermissionHelper.checkPermissions { onMapReady() }
-            }
-
-        }
-
-
 
         return root
     }
 
-    private fun createSearchQueryFramework() {
-
-        //Open the Toolbar of home and add functionalities
-        createDialog()
-    }
-
-    private fun createDialog() {
-        val d = AlertDialog.Builder(requireContext())
-        val v = layoutInflater.inflate(R.layout.search_query_view, null)
-        d.setView(v)
-
-        _actvCar = v.findViewById(R.id.actv_selectCar)
-        _chargeSlider = v.findViewById(R.id.sliderEvCharge)
-        _startSearch = v.findViewById(R.id.mtbStartSearch)
-
-
-        et_start_location = v.findViewById(R.id.query_ui_start_location)
-        et_end_location = v.findViewById(R.id.query_ui_end_location)
-
-        UiUtils().setupGenericAdapters(listOf("Honda", "Tesla"), _actvCar, requireContext())
-
-
-        setupSearchBar()
-
-
-
-        _startSearch.setOnClickListener {
-
-        }
-
-        d.create()
-        d.show()
-    }
-
-
-    private fun setupSearchBar() {
-
-        initializeAdapters()
-        addQueryChangeListeners()
-
-
-
-        if (!requireContext().isPermissionGranted(Manifest.permission.ACCESS_FINE_LOCATION)) {
-            ActivityCompat.requestPermissions(
-                requireActivity(),
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ),
-                PERMISSIONS_REQUEST_LOCATION
-            )
-        }
-
-    }
-
-
-    val startItemClick =
-        AdapterView.OnItemClickListener { adapterView, view, i, l ->
-
-
-            et_start_location.setText(
-                adapterView.getItemAtPosition(i).toString(),
-                TextView.BufferType.EDITABLE
-            )
-
-
-        }
-
-    val endItemClick =
-        AdapterView.OnItemClickListener { adapterView, view, i, l ->
-            et_end_location.setText(
-                adapterView.getItemAtPosition(i).toString(),
-                TextView.BufferType.EDITABLE
-            )
-
-        }
-
-    private fun initializeAdapters() {
-
-        startLocationAdapter = UiUtils().setupLocationAdapters(et_start_location, requireContext())
-        endLocationAdapter = UiUtils().setupLocationAdapters(et_end_location, requireContext())
-
-        et_start_location.onItemClickListener = startItemClick
-        et_end_location.onItemClickListener = endItemClick
-    }
-
-
-    private fun addQueryChangeListeners() {
-        et_start_location.addTextChangedListener(object : TextWatcher {
-
-            override fun onTextChanged(s: CharSequence, start: Int, before: Int, after: Int) {
-
-
-                if (s.toString().isNotEmpty()) {
-
-                    searchRequestTask = searchEngine.search(
-                        s.toString(),
-                        SearchOptions(
-                            proximity = originLocation, fuzzyMatch = true,
-                            limit = 5
-                        ),
-                        searchCallbackSource
-                    )
-
-                }
-
-
-            }
-
-            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
-
-            }
-
-            override fun afterTextChanged(e: Editable) { /* not implemented */
-            }
-        })
-
-
-        et_end_location.addTextChangedListener(object : TextWatcher {
-
-            override fun onTextChanged(s: CharSequence, start: Int, before: Int, after: Int) {
-
-
-                if (s.toString().isNotEmpty()) {
-
-                    searchRequestTask = searchEngine.search(
-                        s.toString(),
-                        SearchOptions(
-                            fuzzyMatch = true,
-                            limit = 5
-                        ),
-                        searchCallbackDestination
-                    )
-                }
-
-
-            }
-
-            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
-
-            }
-
-            override fun afterTextChanged(e: Editable) { /* not implemented */
-            }
-        })
-
-    }
-
-
-    private companion object {
-
-        private const val PERMISSIONS_REQUEST_LOCATION = 0
-
-        fun Context.isPermissionGranted(permission: String): Boolean {
-            return ContextCompat.checkSelfPermission(
-                this, permission
-            ) == PackageManager.PERMISSION_GRANTED
-        }
-    }
-
-
     private fun onMapReady() {
-        mapView.getMapboxMap().setCamera(
-            CameraOptions.Builder()
-                .zoom(14.0)
-                .build()
+
+        homemapboxMap.loadStyle(
+            style(styleUri = Style.TRAFFIC_DAY) {
+
+
+            }, object : Style.OnStyleLoaded {
+                override fun onStyleLoaded(style: Style) {
+
+                    homeMapView.gestures.addOnMapLongClickListener {
+                        if (!FINDING_STATION) {
+
+                            loadStations(it)
+
+                        }
+
+                        true
+                    }
+
+                }
+            }
+
         )
-        mapView.getMapboxMap().loadStyleUri(
-            Style.MAPBOX_STREETS
-        ) {
-            initLocationComponent()
-            setupGesturesListener()
-
-        }
-
-        mapView.getMapboxMap().addOnMapClickListener(this)
 
 
-
-        searchEngine = MapboxSearchSdk.createSearchEngineWithBuiltInDataProviders(
-            SearchEngineSettings(resources.getString(R.string.mapbox_access_token))
-        )
-
-    }
-
-    private fun setupGesturesListener() {
-        mapView.gestures.addOnMoveListener(onMoveListener)
-    }
-
-    private fun initLocationComponent() {
-        val locationComponentPlugin = mapView.location
-        val x = mapView.location
-
-        locationComponentPlugin.updateSettings {
-            this.enabled = true
+        homeMapView.location.apply {
             this.locationPuck = LocationPuck2D(
-                bearingImage = AppCompatResources.getDrawable(
+                bearingImage = ContextCompat.getDrawable(
                     requireContext(),
-                    R.drawable.mapbox_user_puck_icon,
-                ),
-                shadowImage = AppCompatResources.getDrawable(
-                    requireContext(),
-                    R.drawable.mapbox_user_icon_shadow,
-                ),
-                scaleExpression = interpolate {
-                    linear()
-                    zoom()
-                    stop {
-                        literal(0.0)
-                        literal(0.6)
-                    }
-                    stop {
-                        literal(20.0)
-                        literal(1.0)
-                    }
-                }.toJson()
+                    com.example.ecoroute.R.drawable.mapbox_user_puck_icon
+                )
             )
+            setLocationProvider(navigationLocationProvider)
+            enabled = true
         }
-        locationComponentPlugin.addOnIndicatorPositionChangedListener(
-            onIndicatorPositionChangedListener
+
+
+        viewportDataSource = MapboxNavigationViewportDataSource(homemapboxMap)
+        navigationCamera = NavigationCamera(
+            homemapboxMap,
+            homeMapView.camera,
+            viewportDataSource
         )
-        locationComponentPlugin.addOnIndicatorBearingChangedListener(
-            onIndicatorBearingChangedListener
+
+        homeMapView.camera.addCameraAnimationsLifecycleListener(
+            NavigationBasicGesturesHandler(navigationCamera)
         )
-//
+
 
     }
 
-    private fun onCameraTrackingDismissed() {
+    private fun loadStations(it: Point) {
 
-        mapView.location
-            .removeOnIndicatorPositionChangedListener(onIndicatorPositionChangedListener)
-        mapView.location
-            .removeOnIndicatorBearingChangedListener(onIndicatorBearingChangedListener)
-        mapView.gestures.removeOnMoveListener(onMoveListener)
+        val url = URLBuilder.createStationsInVicinityQuery(it)
+        FINDING_STATION = true
+        clearObservers()
+        viewModel.getStationsInVicinity(url).observe(viewLifecycleOwner, Observer { mResponse ->
+
+            if (viewModel.successful.value != null) {
+                pb.visibility = View.INVISIBLE
+                FINDING_STATION = false
+                uiUtilInstance.showToast(ctx, viewModel.message.value.toString())
+                markStations(mResponse)
+
+            } else {
+                pb.visibility = View.VISIBLE
+            }
+        })
     }
 
+    private fun markStations(mResponse: ArrayList<NearbyStationsResponse.NearbyStationsResponseItem>) {
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        locationPermissionHelper.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        Log.e(TAG, "Marking ${mResponse.size} stations")
+        pointAnnotationManager.deleteAll()
+        for (stations in mResponse) {
+            Log.e(TAG, "$stations")
+            attachMarkers(stations.position.lat, stations.position.lon)
+        }
+
     }
 
-    override fun onDestroyView() {
-        super.onDestroyView()
-        mapView.location
-            .removeOnIndicatorBearingChangedListener(onIndicatorBearingChangedListener)
-        mapView.location
-            .removeOnIndicatorPositionChangedListener(onIndicatorPositionChangedListener)
-        mapView.gestures.removeOnMoveListener(onMoveListener)
-        searchRequestTask.cancel()
-        mapView.onDestroy()
+    private fun attachMarkers(_latitude: Double, _longitude: Double) {
+
+
+        uiUtilInstance.bitmapFromDrawableRes(
+            requireContext(),
+            R.drawable.ic_baseline_location_on_24
+        )?.let {
+
+            val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
+                .withPoint(
+                    Point.fromLngLat(
+                        _longitude,
+                        _latitude
+                    )
+                )
+                .withIconImage(it)
+                .withTextAnchor(TextAnchor.TOP)
+
+            pointAnnotationManager.create(pointAnnotationOptions)
+
+
+        }
+
+
     }
+
 
     override fun onStart() {
         super.onStart()
-        mapView.onStart()
+        homeMapView?.onStart()
+        FINDING_STATION = false
+
     }
 
     override fun onStop() {
         super.onStop()
-        mapView.onStop()
+        homeMapView?.onStop()
+        FINDING_STATION = false
     }
 
     override fun onLowMemory() {
         super.onLowMemory()
-        mapView?.onLowMemory()
+        homeMapView?.onLowMemory()
     }
 
-    override fun onMapClick(point: Point): Boolean {
-
-        return true
+    override fun onDestroyView() {
+        super.onDestroyView()
+        homeMapView?.onDestroy()
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        clearObservers()
+        homeMapView?.onDestroy()
+    }
+
+    private fun clearObservers() {
+        viewModel.successful.removeObservers(this)
+        viewModel.successful.value = null
+        viewModel.message.removeObservers(this)
+        viewModel.message.value = null
+    }
 
 }

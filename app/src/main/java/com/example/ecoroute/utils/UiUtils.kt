@@ -1,5 +1,6 @@
 package com.example.ecoroute.utils
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -10,6 +11,7 @@ import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.ProgressBar
+import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.appcompat.content.res.AppCompatResources
 import com.example.ecoroute.R
@@ -18,7 +20,7 @@ import retrofit2.HttpException
 import java.io.IOException
 import java.util.concurrent.TimeoutException
 
-
+@SuppressLint("LogNotTimber", "StringFormatInvalid", "SetTextI18n")
 class UiUtils {
 
     fun setupGenericAdapters(items: List<String>, actv: AutoCompleteTextView, ctx: Context) {
@@ -60,6 +62,10 @@ class UiUtils {
             TAG,
             "Exception $e with cause = " + e.cause.toString() + " and message = " + e.message.toString()
         )
+    }
+
+    fun showToast(ctx : Context, msg : String){
+        Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
     }
 
     fun returnStateMessageForThrowable(throwable: Throwable): String {
