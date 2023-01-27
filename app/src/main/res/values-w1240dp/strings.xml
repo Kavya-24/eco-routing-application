@@ -56,6 +56,9 @@
     <string name="car_plug_type">Car Plug Type</string>
     <string name="choose_source">Choose Starting Point</string>
     <string name="select_car_type">Select Car Type</string>
+    <string name="my_cars">My Cars</string>
+    <string name="car_1">Car 1</string>
+    <string name="demo_connector">IEC60309AC1PhaseBlue</string>
 
 
 </resources>

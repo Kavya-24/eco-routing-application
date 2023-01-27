@@ -4,7 +4,8 @@ package com.example.ecoroute.models.responses
 import com.squareup.moshi.Json
 
 class NearbyStationsResponse : ArrayList<NearbyStationsResponse.NearbyStationsResponseItem>(){
-    data class NearbyStationsResponseItem(
+    data class NearbyStationsResponseItem
+        (
         @Json(name = "address")
         val address: Address,
         @Json(name = "chargingPark")
@@ -25,7 +26,9 @@ class NearbyStationsResponse : ArrayList<NearbyStationsResponse.NearbyStationsRe
         val type: String, // POI
         @Json(name = "viewport")
         val viewport: Viewport
-    ) {
+    )
+
+    {
         data class Address(
             @Json(name = "country")
             val country: String, // India
