@@ -45,7 +45,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/white"
-        android:padding="@dimen/space">
+        android:padding="@dimen/space"
+        android:visibility="invisible"
+        app:layout_constraintTop_toTopOf="parent">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/csl_src"
@@ -180,7 +182,7 @@
             android:text="@string/cancel"
             app:layout_constraintEnd_toStartOf="@id/mtb_navigate"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/rg"/>
+            app:layout_constraintTop_toBottomOf="@id/rg" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/mtb_navigate"
@@ -189,7 +191,7 @@
             android:text="@string/navigate"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/mtb_route_cancel"
-            app:layout_constraintTop_toBottomOf="@id/rg"/>
+            app:layout_constraintTop_toBottomOf="@id/rg" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
