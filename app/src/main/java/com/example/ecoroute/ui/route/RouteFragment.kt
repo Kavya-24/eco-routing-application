@@ -179,7 +179,7 @@ class RouteFragment : Fragment() {
 
                 } else {
 
-                    petrolPath()
+                    energyPath()
                 }
 
 
@@ -189,15 +189,21 @@ class RouteFragment : Fragment() {
     }
 
     private fun energyPath() {
-
+        /**
+         * Server component of isochronic API. Inculcation of Energy
+         */
     }
 
     private fun timePath() {
-
+        /**
+         * Server component of Optimization API
+         */
     }
 
     private fun petrolPath() {
-
+        /**
+         * Server component of Basic API
+         */
     }
 
 
