@@ -2023,6 +2023,7 @@ class NavigationActivity : AppCompatActivity(), OnItemClickListener {
         Toast.makeText(this, point.toJson().toString(), Toast.LENGTH_LONG).show()
         addAnnotationToMap(point.longitude(), point.latitude())
 
+
         val originLocation = navigationLocationProvider.lastLocation
         val originPoint = originLocation?.let {
             Point.fromLngLat(it.longitude, it.latitude)

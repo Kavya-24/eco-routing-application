@@ -18,6 +18,72 @@
         mapbox:mapbox_cameraTargetLng="84.8512"
         mapbox:mapbox_cameraZoom="12" />
 
+
+    <com.mapbox.navigation.ui.maneuver.view.MapboxManeuverView
+        android:id="@+id/maneuverViewRoute"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="4dp"
+        android:visibility="invisible"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <com.mapbox.navigation.ui.voice.view.MapboxSoundButton
+        android:id="@+id/soundButtonRoute"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        android:visibility="invisible"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/maneuverViewRoute" />
+
+    <com.mapbox.navigation.ui.maps.camera.view.MapboxRouteOverviewButton
+        android:id="@+id/routeOverviewRoute"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        android:visibility="invisible"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/soundButtonRoute" />
+
+    <com.mapbox.navigation.ui.maps.camera.view.MapboxRecenterButton
+        android:id="@+id/recenterRoute"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/space_2x"
+        app:layout_constraintTop_toBottomOf="@id/routeOverviewRoute"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/tripProgressCardRoute"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:visibility="invisible"
+        app:cardElevation="8dp"
+        android:layout_marginBottom="64dp"
+        app:cardUseCompatPadding="false"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <com.mapbox.navigation.ui.tripprogress.view.MapboxTripProgressView
+            android:id="@+id/tripProgressViewRoute"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <ImageView
+            android:id="@+id/stopRoute"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="end|center_vertical"
+            android:layout_marginEnd="12dp"
+            app:srcCompat="@android:drawable/ic_delete" />
+    </androidx.cardview.widget.CardView>
+
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/mtbOpenDialog"
         android:layout_width="wrap_content"
@@ -38,7 +104,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
-
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/csl_route_dialog"
@@ -131,7 +196,7 @@
             android:layout_height="wrap_content"
             android:layout_margin="@dimen/space"
             android:contentDescription="@string/charge_slider_desc"
-            android:value="20"
+            android:value="100"
             android:valueFrom="0.0"
             android:valueTo="100"
             app:labelBehavior="withinBounds"

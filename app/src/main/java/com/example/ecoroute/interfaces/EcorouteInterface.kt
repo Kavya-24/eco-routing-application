@@ -1,5 +1,6 @@
 package com.example.ecoroute.interfaces
 
+import com.example.ecoroute.models.responses.EcorouteResponse
 import com.example.ecoroute.models.responses.NearbyStationsResponse
 import retrofit2.Call
 import retrofit2.http.GET
@@ -13,5 +14,10 @@ interface EcorouteInterface {
         @Url stations_in_vicinity: String
     ): Call<ArrayList<NearbyStationsResponse.NearbyStationsResponseItem>>
 
+
+    @GET()
+    fun getEcoroutePath(
+        @Url ecoroute_path : String
+    ) : Call<ArrayList<EcorouteResponse.EcorouteResponseItem>>
 
 }

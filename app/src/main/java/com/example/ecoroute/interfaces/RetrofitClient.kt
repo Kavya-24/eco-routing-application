@@ -1,6 +1,7 @@
 package com.example.ecoroute.interfaces
 
 import androidx.annotation.Keep
+import com.example.ecoroute.models.responses.EcorouteResponse
 import com.example.ecoroute.models.responses.NearbyStationsResponse
 import com.jakewharton.retrofit2.adapter.kotlin.coroutines.CoroutineCallAdapterFactory
 import com.squareup.moshi.FromJson
@@ -38,14 +39,29 @@ object RetrofitClient {
 
         class NearbyStationsClientAdapter {
             @ToJson
-            fun arrayListToJson(list: ArrayList<NearbyStationsResponse.NearbyStationsResponseItem>): List<NearbyStationsResponse.NearbyStationsResponseItem> = list
+            fun arrayListToJson(list: ArrayList<NearbyStationsResponse.NearbyStationsResponseItem>): List<NearbyStationsResponse.NearbyStationsResponseItem> =
+                list
 
             @FromJson
-            fun arrayListFromJson(list: List<NearbyStationsResponse.NearbyStationsResponseItem>): ArrayList<NearbyStationsResponse.NearbyStationsResponseItem> = ArrayList(list)
+            fun arrayListFromJson(list: List<NearbyStationsResponse.NearbyStationsResponseItem>): ArrayList<NearbyStationsResponse.NearbyStationsResponseItem> =
+                ArrayList(list)
         }
+
+
+        class EcoroutePathClientAdapater {
+            @ToJson
+            fun arrayListToJson(list: ArrayList<EcorouteResponse.EcorouteResponseItem>): List<EcorouteResponse.EcorouteResponseItem> =
+                list
+
+            @FromJson
+            fun arrayListFromJson(list: List<EcorouteResponse.EcorouteResponseItem>): ArrayList<EcorouteResponse.EcorouteResponseItem> =
+                ArrayList(list)
+        }
+
 
         val moshi = Moshi.Builder()
             .add(NearbyStationsClientAdapter())
+            .add(EcoroutePathClientAdapater())
             .build()
 
         return Retrofit.Builder()
@@ -54,9 +70,6 @@ object RetrofitClient {
             .addCallAdapterFactory(CoroutineCallAdapterFactory())
             .build().create(EcorouteInterface::class.java)
     }
-
-
-
 
 
 }

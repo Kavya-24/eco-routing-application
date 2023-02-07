@@ -59,7 +59,7 @@
     <string name="my_cars">My Cars</string>
     <string name="car_1">Car 1</string>
     <string name="demo_connector" tools:ignore="Typos">IEC60309AC1PhaseBlue</string>
-    <string name="charging_percentage_20">Charging Percentage: 20%</string>
+    <string name="charging_percentage_20">Charging Percentage: 100%</string>
     <string name="petrol">Petrol</string>
     <string name="time">Time</string>
     <string name="energy">Energy</string>
