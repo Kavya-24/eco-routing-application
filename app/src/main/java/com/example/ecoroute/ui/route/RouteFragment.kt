@@ -1,9 +1,9 @@
 package com.example.ecoroute.ui.route
+
 import com.example.ecoroute.models.responses.EcorouteResponse
 import android.annotation.SuppressLint
 import androidx.cardview.widget.CardView
 import com.mapbox.api.directions.v5.models.DirectionsRoute
-import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.location.Location
 import android.location.LocationManager
@@ -34,14 +34,12 @@ import com.mapbox.maps.MapView
 import com.mapbox.maps.MapboxMap
 import com.mapbox.maps.Style
 import com.mapbox.maps.extension.style.style
-import com.mapbox.maps.plugin.LocationPuck2D
 import com.mapbox.maps.plugin.animation.camera
 import com.mapbox.maps.plugin.annotation.AnnotationPlugin
 import com.mapbox.maps.plugin.annotation.annotations
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.gestures.gestures
-import com.mapbox.maps.plugin.locationcomponent.location
 import com.mapbox.navigation.base.TimeFormat
 import com.mapbox.navigation.base.options.NavigationOptions
 import com.mapbox.navigation.core.MapboxNavigation
@@ -93,10 +91,8 @@ import com.mapbox.search.result.SearchSuggestion
 import com.mapbox.search.ui.view.CommonSearchViewConfiguration
 import com.mapbox.search.ui.view.DistanceUnitType
 import com.mapbox.search.ui.view.SearchResultsView
-import java.lang.ref.WeakReference
 import java.util.*
 import com.mapbox.api.directions.v5.models.RouteOptions
-import com.mapbox.maps.CameraOptions
 import com.mapbox.navigation.base.extensions.applyDefaultNavigationOptions
 import com.mapbox.navigation.base.extensions.applyLanguageAndVoiceUnitOptions
 import com.mapbox.navigation.base.route.*
@@ -124,7 +120,7 @@ class RouteFragment : Fragment() {
 
 
     private val navigationLocationProvider = NavigationLocationProvider()
-    private lateinit var locationPermissionHelper: LocationPermissionHelper
+
     private val locationObserver = object : LocationObserver {
         var firstLocationUpdateReceived = false
 
@@ -153,16 +149,15 @@ class RouteFragment : Fragment() {
     }
     private var currentLocation: Location? = null
     private lateinit var locationManager: LocationManager
-    private val locationCallback =
-        object : LocationEngineCallback<LocationEngineResult> {
-            override fun onSuccess(result: LocationEngineResult?) {
-                Log.e(TAG, "Succesfully initiated location callback")
-            }
-
-            override fun onFailure(exception: Exception) {
-                uiUtilInstance.logExceptions(TAG, exception)
-            }
+    private val locationCallback = object : LocationEngineCallback<LocationEngineResult> {
+        override fun onSuccess(result: LocationEngineResult?) {
+            Log.e(TAG, "Succesfully initiated location callback")
         }
+
+        override fun onFailure(exception: Exception) {
+            uiUtilInstance.logExceptions(TAG, exception)
+        }
+    }
 
 
     //UI elements
@@ -181,7 +176,6 @@ class RouteFragment : Fragment() {
     //Mapbox Map Variables
     private var usePolygon = true
     private val BUTTON_ANIMATION_DURATION = 1500L
-
 
 
     //API points and inits
@@ -216,20 +210,15 @@ class RouteFragment : Fragment() {
     }
     private val speechCallback =
         MapboxNavigationConsumer<Expected<SpeechError, SpeechValue>> { expected ->
-            expected.fold(
-                { error ->
-                    voiceInstructionsPlayer.play(
-                        error.fallback,
-                        voiceInstructionsPlayerCallback
-                    )
-                },
-                { value ->
-                    voiceInstructionsPlayer.play(
-                        value.announcement,
-                        voiceInstructionsPlayerCallback
-                    )
-                }
-            )
+            expected.fold({ error ->
+                voiceInstructionsPlayer.play(
+                    error.fallback, voiceInstructionsPlayerCallback
+                )
+            }, { value ->
+                voiceInstructionsPlayer.play(
+                    value.announcement, voiceInstructionsPlayerCallback
+                )
+            })
         }
     private val voiceInstructionsPlayerCallback =
         MapboxNavigationConsumer<SpeechAnnouncement> { value ->
@@ -251,22 +240,16 @@ class RouteFragment : Fragment() {
         }
 
         val maneuvers = maneuverApi.getManeuvers(routeProgress)
-        maneuvers.fold(
-            { error ->
-                Toast.makeText(
-                    requireContext(),
-                    error.errorMessage,
-                    Toast.LENGTH_SHORT
-                ).show()
-            },
-            {
-                root.findViewById<MapboxManeuverView>(R.id.maneuverViewRoute).visibility =
-                    View.VISIBLE
-                root.findViewById<MapboxManeuverView>(R.id.maneuverViewRoute).renderManeuvers(
-                    maneuvers
-                )
-            }
-        )
+        maneuvers.fold({ error ->
+            Toast.makeText(
+                requireContext(), error.errorMessage, Toast.LENGTH_SHORT
+            ).show()
+        }, {
+            root.findViewById<MapboxManeuverView>(R.id.maneuverViewRoute).visibility = View.VISIBLE
+            root.findViewById<MapboxManeuverView>(R.id.maneuverViewRoute).renderManeuvers(
+                maneuvers
+            )
+        })
 
         root.findViewById<MapboxTripProgressView>(R.id.tripProgressViewRoute).render(
             tripProgressApi.getTripProgress(routeProgress)
@@ -275,12 +258,11 @@ class RouteFragment : Fragment() {
     private val routesObserver = RoutesObserver { routeUpdateResult ->
         if (routeUpdateResult.navigationRoutes.toDirectionsRoutes().isNotEmpty()) {
 
-            val routeLines = routeUpdateResult.navigationRoutes.toDirectionsRoutes()
-                .map { RouteLine(it, null) }
+            val routeLines =
+                routeUpdateResult.navigationRoutes.toDirectionsRoutes().map { RouteLine(it, null) }
 
             routeLineApi.setNavigationRouteLines(
-                routeLines
-                    .toNavigationRouteLines()
+                routeLines.toNavigationRouteLines()
             ) { value ->
                 routemapboxMap.getStyle()?.apply {
                     routeLineView.renderRouteDrawData(this, value)
@@ -288,8 +270,7 @@ class RouteFragment : Fragment() {
             }
 
             viewportDataSource.onRouteChanged(
-                routeUpdateResult.navigationRoutes.toDirectionsRoutes().first()
-                    .toNavigationRoute()
+                routeUpdateResult.navigationRoutes.toDirectionsRoutes().first().toNavigationRoute()
             )
             viewportDataSource.evaluate()
         } else {
@@ -297,8 +278,7 @@ class RouteFragment : Fragment() {
             if (style != null) {
                 routeLineApi.clearRouteLine { value ->
                     routeLineView.renderClearRouteLineValue(
-                        style,
-                        value
+                        style, value
                     )
                 }
                 routeArrowView.render(style, routeArrowApi.clearArrows())
@@ -317,9 +297,7 @@ class RouteFragment : Fragment() {
 
 
     override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View? {
         root = inflater.inflate(com.example.ecoroute.R.layout.fragment_route, container, false)
         pb = root.findViewById(R.id.pbRoute)
@@ -335,11 +313,7 @@ class RouteFragment : Fragment() {
 
 
 
-        locationPermissionHelper = LocationPermissionHelper(WeakReference(requireActivity()))
-        locationPermissionHelper.checkPermissions {
-            onMapReady()
-        }
-
+        onMapReady()
         mtbRouteQuery.setOnClickListener {
             openDialog()
         }
@@ -363,6 +337,7 @@ class RouteFragment : Fragment() {
         //Search Points
         sourceSearchPoint = null
         destinationSearchPoint = null
+        clearDialog()
         initialSOC = 100.0
 
 
@@ -402,40 +377,28 @@ class RouteFragment : Fragment() {
 
                     ecoroute(
                         URLBuilder.createEcoroutePathQuery(
-                            sourceSearchPoint!!,
-                            destinationSearchPoint!!,
-                            initialSOC!!,
-                            "petrol"
+                            sourceSearchPoint!!, destinationSearchPoint!!, initialSOC!!, "petrol"
                         )
                     )
 
                 } else if (root.findViewById<RadioButton>(R.id.radio_energy).isChecked) {
                     ecoroute(
                         URLBuilder.createEcoroutePathQuery(
-                            sourceSearchPoint!!,
-                            destinationSearchPoint!!,
-                            initialSOC!!,
-                            "energy"
+                            sourceSearchPoint!!, destinationSearchPoint!!, initialSOC!!, "energy"
                         )
                     )
                 } else if (root.findViewById<RadioButton>(R.id.radio_time).isChecked) {
 
                     ecoroute(
                         URLBuilder.createEcoroutePathQuery(
-                            sourceSearchPoint!!,
-                            destinationSearchPoint!!,
-                            initialSOC!!,
-                            "time"
+                            sourceSearchPoint!!, destinationSearchPoint!!, initialSOC!!, "time"
                         )
                     )
 
                 } else {
                     ecoroute(
                         URLBuilder.createEcoroutePathQuery(
-                            sourceSearchPoint!!,
-                            destinationSearchPoint!!,
-                            initialSOC!!,
-                            "energy"
+                            sourceSearchPoint!!, destinationSearchPoint!!, initialSOC!!, "energy"
                         )
                     )
 
@@ -465,24 +428,19 @@ class RouteFragment : Fragment() {
         })
     }
 
-    private fun findRoute(mResponse : ArrayList<EcorouteResponse.EcorouteResponseItem>){
+    private fun findRoute(mResponse: ArrayList<EcorouteResponse.EcorouteResponseItem>) {
 
         val path_list = mutableListOf<Point>()
-        for(item in mResponse){
+        for (item in mResponse) {
             path_list.add(Point.fromLngLat(item.lon.toDouble(), item.lat.toDouble()))
         }
 
-        routemapboxNavigation.requestRoutes(
-            RouteOptions.builder()
-                .applyDefaultNavigationOptions()
-                .applyLanguageAndVoiceUnitOptions(requireContext())
-                .coordinatesList(path_list.toList())
-                .layersList(MapUtils.getDirectionLayers(path_list))
-                .build(),
+        routemapboxNavigation.requestRoutes(RouteOptions.builder().applyDefaultNavigationOptions()
+            .applyLanguageAndVoiceUnitOptions(requireContext()).coordinatesList(path_list.toList())
+            .layersList(MapUtils.getDirectionLayers(path_list)).build(),
             object : RouterCallback {
                 override fun onRoutesReady(
-                    routes: List<DirectionsRoute>,
-                    routerOrigin: RouterOrigin
+                    routes: List<DirectionsRoute>, routerOrigin: RouterOrigin
                 ) {
 
                     setRouteAndStartNavigation(routes, routerOrigin)
@@ -490,46 +448,29 @@ class RouteFragment : Fragment() {
                 }
 
                 override fun onFailure(
-                    reasons: List<RouterFailure>,
-                    routeOptions: RouteOptions
+                    reasons: List<RouterFailure>, routeOptions: RouteOptions
                 ) {
                 }
 
                 override fun onCanceled(
-                    routeOptions: RouteOptions,
-                    routerOrigin: RouterOrigin
+                    routeOptions: RouteOptions, routerOrigin: RouterOrigin
                 ) {
                 }
-            }
-        )
+            })
 
     }
 
     private fun setRouteAndStartNavigation(
-        routes: List<DirectionsRoute>,
-        routerOrigin: RouterOrigin
+        routes: List<DirectionsRoute>, routerOrigin: RouterOrigin
     ) {
 
         NAVIGATION_IN_PROGRESS = true
         routemapboxNavigation.setNavigationRoutes(routes.toNavigationRoutes(routerOrigin))
 
-        val _cameraOptions = CameraOptions.Builder()
-            .center(Point.fromLngLat(sourceSearchPoint!!.longitude(), sourceSearchPoint!!.latitude()))
-            .pitch(45.0)
-            .zoom(15.5)
-            .bearing(-17.6)
-            .build()
-
-        routemapboxMap.setCamera(_cameraOptions)
 
         //startSimulation(routes.first())
 
-        /** show UI elements*/
-        root.findViewById<MapboxSoundButton>(R.id.soundButtonRoute).visibility = View.VISIBLE
-        root.findViewById<MapboxRouteOverviewButton>(R.id.routeOverviewRoute).visibility =
-            View.VISIBLE
-        root.findViewById<CardView>(R.id.tripProgressCardRoute).visibility = View.VISIBLE
-
+        showUIElement()
         /** move the camera to overview when new route is available */
         navigationCamera.requestNavigationCameraToOverview()
 
@@ -551,21 +492,21 @@ class RouteFragment : Fragment() {
     }
 
 
+    @SuppressLint("MissingPermission")
     private fun onMapReady() {
 
-        routemapboxMap.loadStyle(
-            style(styleUri = Style.TRAFFIC_DAY) {
+        routemapboxMap.loadStyle(style(styleUri = Style.TRAFFIC_DAY) {
 
 
-            }, object : Style.OnStyleLoaded {
-                override fun onStyleLoaded(style: Style) {
+        }, object : Style.OnStyleLoaded {
+            override fun onStyleLoaded(style: Style) {
 
-                    routeMapView.gestures.addOnMapLongClickListener {
-                        true
-                    }
-
+                routeMapView.gestures.addOnMapLongClickListener {
+                    true
                 }
+
             }
+        }
 
         )
 
@@ -596,9 +537,7 @@ class RouteFragment : Fragment() {
 
         viewportDataSource = MapboxNavigationViewportDataSource(routemapboxMap)
         navigationCamera = NavigationCamera(
-            routemapboxMap,
-            routeMapView.camera,
-            viewportDataSource
+            routemapboxMap, routeMapView.camera, viewportDataSource
         )
 
         routeMapView.camera.addCameraAnimationsLifecycleListener(
@@ -609,12 +548,10 @@ class RouteFragment : Fragment() {
 
 
             when (navigationCameraState) {
-                NavigationCameraState.TRANSITION_TO_FOLLOWING,
-                NavigationCameraState.FOLLOWING -> root.findViewById<MapboxRecenterButton>(R.id.recenterRoute).visibility =
-                    View.INVISIBLE
-                NavigationCameraState.TRANSITION_TO_OVERVIEW,
-                NavigationCameraState.OVERVIEW,
-                NavigationCameraState.IDLE ->
+                NavigationCameraState.TRANSITION_TO_FOLLOWING, NavigationCameraState.FOLLOWING -> root.findViewById<MapboxRecenterButton>(
+                    R.id.recenterRoute
+                ).visibility = View.INVISIBLE
+                NavigationCameraState.TRANSITION_TO_OVERVIEW, NavigationCameraState.OVERVIEW, NavigationCameraState.IDLE ->
 
                     root.findViewById<MapboxRecenterButton>(R.id.recenterRoute).visibility =
                         View.VISIBLE
@@ -630,7 +567,8 @@ class RouteFragment : Fragment() {
         }
 
         // make sure to use the same DistanceFormatterOptions across different features
-        val distanceFormatterOptions = routemapboxNavigation.navigationOptions.distanceFormatterOptions
+        val distanceFormatterOptions =
+            routemapboxNavigation.navigationOptions.distanceFormatterOptions
 
         // initialize maneuver api that feeds the data to the top banner maneuver view
         maneuverApi = MapboxManeuverApi(
@@ -639,32 +577,23 @@ class RouteFragment : Fragment() {
 
         // initialize bottom progress view
         tripProgressApi = MapboxTripProgressApi(
-            TripProgressUpdateFormatter.Builder(requireContext())
-                .distanceRemainingFormatter(
-                    DistanceRemainingFormatter(distanceFormatterOptions)
-                )
-                .timeRemainingFormatter(
-                    TimeRemainingFormatter(requireContext())
-                )
-                .percentRouteTraveledFormatter(
-                    PercentDistanceTraveledFormatter()
-                )
-                .estimatedTimeToArrivalFormatter(
-                    EstimatedTimeToArrivalFormatter(requireContext(), TimeFormat.NONE_SPECIFIED)
-                )
-                .build()
+            TripProgressUpdateFormatter.Builder(requireContext()).distanceRemainingFormatter(
+                DistanceRemainingFormatter(distanceFormatterOptions)
+            ).timeRemainingFormatter(
+                TimeRemainingFormatter(requireContext())
+            ).percentRouteTraveledFormatter(
+                PercentDistanceTraveledFormatter()
+            ).estimatedTimeToArrivalFormatter(
+                EstimatedTimeToArrivalFormatter(requireContext(), TimeFormat.NONE_SPECIFIED)
+            ).build()
         )
 
         // initialize voice instructions api and the voice instruction player
         speechApi = MapboxSpeechApi(
-            requireContext(),
-            getString(R.string.mapbox_access_token),
-            Locale.US.language
+            requireContext(), getString(R.string.mapbox_access_token), Locale.US.language
         )
         voiceInstructionsPlayer = MapboxVoiceInstructionsPlayer(
-            requireContext(),
-            getString(R.string.mapbox_access_token),
-            Locale.US.language
+            requireContext(), getString(R.string.mapbox_access_token), Locale.US.language
         )
 
         /** initialize route line, the withRouteLineBelowLayerId is specified to place
@@ -672,9 +601,9 @@ class RouteFragment : Fragment() {
         the value of this option will depend on the style that you are using
         and under which layer the route line should be placed on the map layers stack */
 
-        val mapboxRouteLineOptions = MapboxRouteLineOptions.Builder(requireContext())
-            .withRouteLineBelowLayerId("road-label")
-            .build()
+        val mapboxRouteLineOptions =
+            MapboxRouteLineOptions.Builder(requireContext()).withRouteLineBelowLayerId("road-label")
+                .build()
         routeLineApi = MapboxRouteLineApi(mapboxRouteLineOptions)
         routeLineView = MapboxRouteLineView(mapboxRouteLineOptions)
 
@@ -711,19 +640,6 @@ class RouteFragment : Fragment() {
         root.findViewById<MapboxSoundButton>(R.id.soundButtonRoute).unmute()
 
 
-        if (ActivityCompat.checkSelfPermission(
-                requireContext(),
-                android.Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                requireContext(),
-                android.Manifest.permission.ACCESS_COARSE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-
-            return
-        }
-
-
 
         routemapboxNavigation.startTripSession()
 
@@ -743,10 +659,7 @@ class RouteFragment : Fragment() {
                 }
 
                 override fun beforeTextChanged(
-                    s: CharSequence,
-                    start: Int,
-                    count: Int,
-                    after: Int
+                    s: CharSequence, start: Int, count: Int, after: Int
                 ) {
                     root.findViewById<SearchResultsView>(R.id.sv_src).visibility = View.VISIBLE
                 }
@@ -769,10 +682,7 @@ class RouteFragment : Fragment() {
                 }
 
                 override fun beforeTextChanged(
-                    s: CharSequence,
-                    start: Int,
-                    count: Int,
-                    after: Int
+                    s: CharSequence, start: Int, count: Int, after: Int
                 ) {
                     root.findViewById<SearchResultsView>(R.id.sv_dst).visibility = View.VISIBLE
                 }
@@ -800,8 +710,7 @@ class RouteFragment : Fragment() {
                 }
 
                 override fun onSearchResult(
-                    searchResult: SearchResult,
-                    responseInfo: ResponseInfo
+                    searchResult: SearchResult, responseInfo: ResponseInfo
                 ) {
                     root.findViewById<TextInputEditText>(R.id.et_src)
                         .setText(searchResult.name.toString(), TextView.BufferType.EDITABLE)
@@ -811,8 +720,7 @@ class RouteFragment : Fragment() {
                 }
 
                 override fun onPopulateQueryClicked(
-                    suggestion: SearchSuggestion,
-                    responseInfo: ResponseInfo
+                    suggestion: SearchSuggestion, responseInfo: ResponseInfo
                 ) {
 
                 }
@@ -831,14 +739,12 @@ class RouteFragment : Fragment() {
                 }
 
                 override fun onOfflineSearchResults(
-                    results: List<SearchResult>,
-                    responseInfo: ResponseInfo
+                    results: List<SearchResult>, responseInfo: ResponseInfo
                 ) {
                 }
 
                 override fun onSuggestions(
-                    suggestions: List<SearchSuggestion>,
-                    responseInfo: ResponseInfo
+                    suggestions: List<SearchSuggestion>, responseInfo: ResponseInfo
                 ) {
                 }
             })
@@ -856,8 +762,7 @@ class RouteFragment : Fragment() {
                 }
 
                 override fun onSearchResult(
-                    searchResult: SearchResult,
-                    responseInfo: ResponseInfo
+                    searchResult: SearchResult, responseInfo: ResponseInfo
                 ) {
                     root.findViewById<TextInputEditText>(R.id.et_dst)
                         .setText(searchResult.name.toString(), TextView.BufferType.EDITABLE)
@@ -867,8 +772,7 @@ class RouteFragment : Fragment() {
                 }
 
                 override fun onPopulateQueryClicked(
-                    suggestion: SearchSuggestion,
-                    responseInfo: ResponseInfo
+                    suggestion: SearchSuggestion, responseInfo: ResponseInfo
                 ) {
 
                 }
@@ -887,14 +791,12 @@ class RouteFragment : Fragment() {
                 }
 
                 override fun onOfflineSearchResults(
-                    results: List<SearchResult>,
-                    responseInfo: ResponseInfo
+                    results: List<SearchResult>, responseInfo: ResponseInfo
                 ) {
                 }
 
                 override fun onSuggestions(
-                    suggestions: List<SearchSuggestion>,
-                    responseInfo: ResponseInfo
+                    suggestions: List<SearchSuggestion>, responseInfo: ResponseInfo
                 ) {
                 }
             })
@@ -992,6 +894,14 @@ class RouteFragment : Fragment() {
         mapboxReplayer.stop()
         NAVIGATION_IN_PROGRESS = false
 
+
+    }
+
+    private fun showUIElement() {
+        root.findViewById<MapboxSoundButton>(R.id.soundButtonRoute).visibility = View.VISIBLE
+        root.findViewById<MapboxRouteOverviewButton>(R.id.routeOverviewRoute).visibility =
+            View.VISIBLE
+        root.findViewById<CardView>(R.id.tripProgressCardRoute).visibility = View.VISIBLE
 
     }
 

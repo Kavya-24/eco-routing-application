@@ -64,6 +64,17 @@
     <string name="time">Time</string>
     <string name="energy">Energy</string>
     <string name="navigate">Navigate</string>
+    <string name="select">SELECT</string>
+    <string name="delete">DELETE</string>
+    <string name="add">Add</string>
+    <string name="car_name">Car Name</string>
+    <string name="connector">Connector</string>
+    <string name="fast">Fast</string>
+    <string name="normal">Normal</string>
+    <string name="slow">Slow</string>
+    <string name="mileage_miles">Mileage (miles)</string>
+    <string name="age_days">Age (days)</string>
+    <string name="battery_kwh">Battery (KwH)</string>
 
 
 </resources>

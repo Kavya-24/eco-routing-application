@@ -2,17 +2,19 @@
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/cv_car"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="@dimen/space"
-    android:id="@+id/cv_car"
-    android:padding="@dimen/space_half"
-    app:cardCornerRadius="@dimen/space_half">
+    android:elevation="@dimen/space"
+    android:padding="@dimen/space"
+    app:cardCornerRadius="@dimen/space"
+    app:cardElevation="@dimen/space">
 
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:padding="@dimen/space">
 
 
         <TextView
@@ -32,26 +34,42 @@
 
 
         <TextView
-            android:id="@+id/tv_ev_car_des"
+            android:id="@+id/tv_ev_car_charger"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space_half"
+            android:minLines="1"
+            android:padding="@dimen/space_half"
+            android:textColor="@color/black"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_ev_car_name"
+            tools:text="@tools:sample/full_names" />
+
+
+        <TextView
+            android:id="@+id/tv_ev_car_config"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_margin="@dimen/space_half"
             android:minLines="1"
             android:padding="@dimen/space_half"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_ev_car_name"
+            app:layout_constraintTop_toBottomOf="@id/tv_ev_car_charger"
             tools:text="@tools:sample/full_names" />
 
 
-        <ImageView
-            android:id="@+id/iv_ev_car_image"
-            android:layout_width="@dimen/space_6x"
-            android:layout_height="@dimen/space_6x"
-            android:layout_marginEnd="@dimen/space"
-            app:layout_constraintBottom_toBottomOf="parent"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/mtb_deleter_car"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space_half"
+            android:text="@string/delete"
+            app:backgroundTint="@color/red_light"
+            app:cornerRadius="0dp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:src="@drawable/ic_baseline_electric_car_24" />
+            app:layout_constraintHorizontal_weight="0.5"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_ev_car_config" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.cardview.widget.CardView>

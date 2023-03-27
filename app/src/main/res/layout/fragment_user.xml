@@ -14,7 +14,7 @@
 
         <TextView
             android:id="@+id/tvMyCars"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/space"
             android:fontFamily="sans-serif-smallcaps"
@@ -22,47 +22,37 @@
             android:textColor="@color/black"
             android:textSize="28sp"
             android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <androidx.cardview.widget.CardView
-            android:id="@+id/cvMyCar"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/mtb_add_car"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/add"
+            app:backgroundTint="@color/blue_light"
+            app:icon="@drawable/ic_baseline_add_24"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/img_no_car"
+            android:src="@drawable/no_cars_found"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvMyCars" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_ev_cars"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_4x"
-            android:elevation="@dimen/space"
-            android:padding="@dimen/space"
-            app:cardBackgroundColor="#f0fff0"
-            app:cardCornerRadius="@dimen/space"
-            app:layout_constraintTop_toBottomOf="@id/tvMyCars">
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:padding="@dimen/space">
-
-                <TextView
-                    android:id="@+id/tvCarName"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="@dimen/space"
-                    android:text="@string/car_1"
-                    android:textColor="@color/black"
-                    android:textSize="20sp"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    android:id="@+id/tvCarConnector"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="@dimen/space"
-                    android:text="@string/demo_connector"
-                    android:textSize="14sp"
-                    app:layout_constraintTop_toBottomOf="@id/tvCarName" />
-
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-        </androidx.cardview.widget.CardView>
-
+            android:layout_marginTop="@dimen/space_2x"
+            android:scrollbars="vertical"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/tvMyCars"
+            tools:listitem="@layout/car_item" />
 
 
     </androidx.constraintlayout.widget.ConstraintLayout>

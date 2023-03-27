@@ -17,7 +17,6 @@ import androidx.lifecycle.Observer
 import com.example.ecoroute.R
 import com.example.ecoroute.models.responses.NearbyStationsResponse
 import com.example.ecoroute.utils.ApplicationUtils
-import com.example.ecoroute.utils.LocationPermissionHelper
 import com.example.ecoroute.utils.URLBuilder
 import com.example.ecoroute.utils.UiUtils
 import com.mapbox.geojson.Point
@@ -39,7 +38,6 @@ import com.mapbox.navigation.ui.maps.camera.NavigationCamera
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 import com.mapbox.navigation.ui.maps.camera.lifecycle.NavigationBasicGesturesHandler
 import com.mapbox.navigation.ui.maps.location.NavigationLocationProvider
-import java.lang.ref.WeakReference
 
 
 @SuppressLint("LogNotTimber", "StringFormatInvalid", "SetTextI18n")
@@ -63,7 +61,7 @@ class HomeFragment : Fragment() {
     private lateinit var pointAnnotationManager: PointAnnotationManager
 
     private val navigationLocationProvider = NavigationLocationProvider()
-    private lateinit var locationPermissionHelper: LocationPermissionHelper
+
 
     private var currentLocation: Location? = null
     private lateinit var locationManager: LocationManager
@@ -71,9 +69,7 @@ class HomeFragment : Fragment() {
 
     private var FINDING_STATION = false
     override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View? {
 
         root = inflater.inflate(com.example.ecoroute.R.layout.fragment_home, container, false)
@@ -86,10 +82,7 @@ class HomeFragment : Fragment() {
 
 
 
-        locationPermissionHelper = LocationPermissionHelper(WeakReference(requireActivity()))
-        locationPermissionHelper.checkPermissions {
-            onMapReady()
-        }
+        onMapReady()
 
 
 
@@ -98,25 +91,24 @@ class HomeFragment : Fragment() {
 
     private fun onMapReady() {
 
-        homemapboxMap.loadStyle(
-            style(styleUri = Style.TRAFFIC_DAY) {
+        homemapboxMap.loadStyle(style(styleUri = Style.TRAFFIC_DAY) {
 
 
-            }, object : Style.OnStyleLoaded {
-                override fun onStyleLoaded(style: Style) {
+        }, object : Style.OnStyleLoaded {
+            override fun onStyleLoaded(style: Style) {
 
-                    homeMapView.gestures.addOnMapLongClickListener {
-                        if (!FINDING_STATION) {
+                homeMapView.gestures.addOnMapLongClickListener {
+                    if (!FINDING_STATION) {
 
-                            loadStations(it)
+                        loadStations(it)
 
-                        }
-
-                        true
                     }
 
+                    true
                 }
+
             }
+        }
 
         )
 
@@ -124,8 +116,7 @@ class HomeFragment : Fragment() {
         homeMapView.location.apply {
             this.locationPuck = LocationPuck2D(
                 bearingImage = ContextCompat.getDrawable(
-                    requireContext(),
-                    com.example.ecoroute.R.drawable.mapbox_user_puck_icon
+                    requireContext(), com.example.ecoroute.R.drawable.mapbox_user_puck_icon
                 )
             )
             setLocationProvider(navigationLocationProvider)
@@ -135,9 +126,7 @@ class HomeFragment : Fragment() {
 
         viewportDataSource = MapboxNavigationViewportDataSource(homemapboxMap)
         navigationCamera = NavigationCamera(
-            homemapboxMap,
-            homeMapView.camera,
-            viewportDataSource
+            homemapboxMap, homeMapView.camera, viewportDataSource
         )
 
         homeMapView.camera.addCameraAnimationsLifecycleListener(
@@ -180,19 +169,14 @@ class HomeFragment : Fragment() {
 
 
         uiUtilInstance.bitmapFromDrawableRes(
-            requireContext(),
-            R.drawable.ic_baseline_location_on_24
+            requireContext(), R.drawable.ic_baseline_location_on_24
         )?.let {
 
-            val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
-                .withPoint(
+            val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions().withPoint(
                     Point.fromLngLat(
-                        _longitude,
-                        _latitude
+                        _longitude, _latitude
                     )
-                )
-                .withIconImage(it)
-                .withTextAnchor(TextAnchor.TOP)
+                ).withIconImage(it).withTextAnchor(TextAnchor.TOP)
 
             pointAnnotationManager.create(pointAnnotationOptions)
 

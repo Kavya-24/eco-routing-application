@@ -54,16 +54,16 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_margin="@dimen/space_2x"
-        app:layout_constraintTop_toBottomOf="@id/routeOverviewRoute"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/routeOverviewRoute" />
 
     <androidx.cardview.widget.CardView
         android:id="@+id/tripProgressCardRoute"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="64dp"
         android:visibility="invisible"
         app:cardElevation="8dp"
-        android:layout_marginBottom="64dp"
         app:cardUseCompatPadding="false"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

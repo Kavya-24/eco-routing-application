@@ -23,35 +23,6 @@ import java.util.concurrent.TimeoutException
 @SuppressLint("LogNotTimber", "StringFormatInvalid", "SetTextI18n")
 class UiUtils {
 
-    fun setupGenericAdapters(items: List<String>, actv: AutoCompleteTextView, ctx: Context) {
-
-        val adapter = ArrayAdapter(ctx, R.layout.ev_list_item, items)
-        (actv as? AutoCompleteTextView)?.setAdapter(adapter)
-    }
-
-
-    fun setupLocationAdapters(actv: AutoCompleteTextView, ctx: Context): ArrayAdapter<String> {
-
-        val adapter = ArrayAdapter<String>(ctx, android.R.layout.simple_dropdown_item_1line)
-        (actv as? AutoCompleteTextView)?.setAdapter(adapter)
-        return adapter
-    }
-
-    fun showIndefiniteSnackbar(view: View, message: String) {
-        Snackbar.make(view, message, Snackbar.LENGTH_INDEFINITE).show()
-    }
-
-    fun showSnackbar(view: View, message: String) {
-        Snackbar.make(view, message, Snackbar.LENGTH_SHORT).show()
-    }
-
-    fun showProgress(view: View, pb: ProgressBar, ctx: Context) {
-        pb.visibility = View.VISIBLE
-    }
-
-    fun hideProgress(view: View, pb: ProgressBar, ctx: Context) {
-        pb.visibility = View.GONE
-    }
 
     fun logThrowables(TAG: String, t: Throwable) {
         Log.e(TAG, "Throwable $t with cause = " + t.cause.toString())
