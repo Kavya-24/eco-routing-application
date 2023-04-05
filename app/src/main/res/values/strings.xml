@@ -77,6 +77,7 @@
     <string name="mileage_miles">Mileage (miles)</string>
     <string name="age_days">Age (days)</string>
     <string name="battery_kwh">Battery (KwH)</string>
+    <string name="select_connector">Select Connector</string>
 
 
 </resources>

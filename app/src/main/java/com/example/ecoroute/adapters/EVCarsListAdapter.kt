@@ -38,10 +38,14 @@ class EVCarsListAdapter(val itemClick: OnItemClickListener) :
 
 
                 evCarName.text = _listItem.carName
-                evCarCharger.text =
-                    _listItem.carConnector + " " + _listItem.carChargerType + " Charger"
+                var chargers = "";
+                for (c in _listItem.carConnector) {
+                    chargers += "($c) "
+                }
+                chargers.removeSuffix(",")
+                evCarCharger.text = "Supports: $chargers"
                 evCarConfiguration.text =
-                    _listItem.carBatterCapacity.toString() + " KwH. Runs " + _listItem.carMileage.toString() + " miles. Age =" + _listItem.carAge.toString() + " days."
+                    _listItem.carBatterCapacity.toString() + " KwH. Runs " + _listItem.carMileage.toString() + " miles. Age = " + _listItem.carAge.toString() + " days."
 
 
                 itemView.setOnClickListener {

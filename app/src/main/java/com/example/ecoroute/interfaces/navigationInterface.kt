@@ -2,7 +2,6 @@ package com.example.ecoroute.interfaces
 
 import androidx.annotation.Keep
 import com.example.ecoroute.models.responses.DirectionRouteResponse
-import com.example.ecoroute.models.responses.ElevationAPIResponse
 import com.example.ecoroute.models.responses.GeoCodedQueryResponse
 import com.example.ecoroute.models.responses.IsochronePolygonResponse
 import retrofit2.Call

@@ -22,6 +22,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.example.ecoroute.R
+import com.example.ecoroute.ui.user.EVCarStorage
 import com.example.ecoroute.utils.*
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.slider.Slider
@@ -365,40 +366,44 @@ class RouteFragment : Fragment() {
 
         root.findViewById<MaterialButton>(R.id.mtb_navigate).setOnClickListener {
 
+
+
             if (sourceSearchPoint == null || destinationSearchPoint == null) {
                 uiUtilInstance.showToast(ctx, "Enter source and destination")
                 closeDialog()
             } else if (FINDING_PATH) {
                 uiUtilInstance.showToast(ctx, "Request already in progress")
-            } else {
+            } else if(EVCarStorage.getCars(requireContext()).isEmpty()){
+                uiUtilInstance.showToast(ctx, "No car found and selected. Add a car. ")
+            }else {
 
                 closeDialog()
                 if (root.findViewById<RadioButton>(R.id.radio_petrol).isChecked) {
 
                     ecoroute(
                         URLBuilder.createEcoroutePathQuery(
-                            sourceSearchPoint!!, destinationSearchPoint!!, initialSOC!!, "petrol"
+                            sourceSearchPoint!!, destinationSearchPoint!!, initialSOC!!, "petrol", requireContext()
                         )
                     )
 
                 } else if (root.findViewById<RadioButton>(R.id.radio_energy).isChecked) {
                     ecoroute(
                         URLBuilder.createEcoroutePathQuery(
-                            sourceSearchPoint!!, destinationSearchPoint!!, initialSOC!!, "energy"
+                            sourceSearchPoint!!, destinationSearchPoint!!, initialSOC!!, "energy",requireContext()
                         )
                     )
                 } else if (root.findViewById<RadioButton>(R.id.radio_time).isChecked) {
 
                     ecoroute(
                         URLBuilder.createEcoroutePathQuery(
-                            sourceSearchPoint!!, destinationSearchPoint!!, initialSOC!!, "time"
+                            sourceSearchPoint!!, destinationSearchPoint!!, initialSOC!!, "time",requireContext()
                         )
                     )
 
                 } else {
                     ecoroute(
                         URLBuilder.createEcoroutePathQuery(
-                            sourceSearchPoint!!, destinationSearchPoint!!, initialSOC!!, "energy"
+                            sourceSearchPoint!!, destinationSearchPoint!!, initialSOC!!, "energy",requireContext()
                         )
                     )
 

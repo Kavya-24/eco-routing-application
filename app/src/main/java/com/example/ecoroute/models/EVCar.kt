@@ -9,7 +9,7 @@ data class EVCar(
     var carMileage: Int,                //in miles on ful charge
     var carBatterCapacity: Int,          //in kwh
     //charger
-    var carConnector: String,           //usable string literal
+    var carConnector: List<String>,           //usable string literal
     var carChargerType: String        //enum {fast, normal, slow}
 
 ) {}

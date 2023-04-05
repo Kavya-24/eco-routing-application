@@ -27,20 +27,24 @@
                 android:hint="@string/car_name" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <com.google.android.material.textfield.TextInputLayout
+        <TextView
             android:id="@+id/tilCarConnector"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_margin="@dimen/space"
-            app:layout_constraintTop_toBottomOf="@id/tilCarName">
+            android:padding="@dimen/space"
+            android:text="@string/select_connector"
+            android:textColor="@color/blue_light"
+            app:layout_constraintTop_toBottomOf="@id/tilCarName" />
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etCarConnector"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="@string/connector" />
-        </com.google.android.material.textfield.TextInputLayout>
+        <TextView
+            android:id="@+id/tvConnectorList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/space"
+            android:padding="@dimen/space"
+            app:layout_constraintTop_toBottomOf="@id/tilCarConnector" />
+
 
         <RadioGroup
             android:id="@+id/rg2"
@@ -49,7 +53,7 @@
             android:layout_margin="@dimen/space"
             android:orientation="horizontal"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tilCarConnector">
+            app:layout_constraintTop_toBottomOf="@id/tvConnectorList">
 
             <RadioButton
                 android:id="@+id/radio_fast"

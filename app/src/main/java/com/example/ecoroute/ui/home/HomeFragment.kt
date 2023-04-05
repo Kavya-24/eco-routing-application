@@ -173,10 +173,10 @@ class HomeFragment : Fragment() {
         )?.let {
 
             val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions().withPoint(
-                    Point.fromLngLat(
-                        _longitude, _latitude
-                    )
-                ).withIconImage(it).withTextAnchor(TextAnchor.TOP)
+                Point.fromLngLat(
+                    _longitude, _latitude
+                )
+            ).withIconImage(it).withTextAnchor(TextAnchor.TOP)
 
             pointAnnotationManager.create(pointAnnotationOptions)
 
