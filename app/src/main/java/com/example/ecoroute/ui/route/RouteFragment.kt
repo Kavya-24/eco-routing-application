@@ -1,9 +1,6 @@
 package com.example.ecoroute.ui.route
 
-import com.example.ecoroute.models.responses.EcorouteResponse
 import android.annotation.SuppressLint
-import androidx.cardview.widget.CardView
-import com.mapbox.api.directions.v5.models.DirectionsRoute
 import android.content.res.Configuration
 import android.location.Location
 import android.location.LocationManager
@@ -15,20 +12,23 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import androidx.cardview.widget.CardView
 import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.example.ecoroute.R
+import com.example.ecoroute.models.responses.EcorouteResponse
 import com.example.ecoroute.ui.user.EVCarStorage
 import com.example.ecoroute.utils.*
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
 import com.mapbox.android.core.location.LocationEngineCallback
 import com.mapbox.android.core.location.LocationEngineResult
+import com.mapbox.api.directions.v5.models.DirectionsRoute
+import com.mapbox.api.directions.v5.models.RouteOptions
 import com.mapbox.bindgen.Expected
 import com.mapbox.geojson.Point
 import com.mapbox.maps.MapView
@@ -42,7 +42,10 @@ import com.mapbox.maps.plugin.annotation.generated.PointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.gestures.gestures
 import com.mapbox.navigation.base.TimeFormat
+import com.mapbox.navigation.base.extensions.applyDefaultNavigationOptions
+import com.mapbox.navigation.base.extensions.applyLanguageAndVoiceUnitOptions
 import com.mapbox.navigation.base.options.NavigationOptions
+import com.mapbox.navigation.base.route.*
 import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.MapboxNavigationProvider
 import com.mapbox.navigation.core.directions.session.RoutesObserver
@@ -93,10 +96,6 @@ import com.mapbox.search.ui.view.CommonSearchViewConfiguration
 import com.mapbox.search.ui.view.DistanceUnitType
 import com.mapbox.search.ui.view.SearchResultsView
 import java.util.*
-import com.mapbox.api.directions.v5.models.RouteOptions
-import com.mapbox.navigation.base.extensions.applyDefaultNavigationOptions
-import com.mapbox.navigation.base.extensions.applyLanguageAndVoiceUnitOptions
-import com.mapbox.navigation.base.route.*
 
 
 @SuppressLint("LogNotTimber", "StringFormatInvalid", "SetTextI18n")
@@ -367,43 +366,58 @@ class RouteFragment : Fragment() {
         root.findViewById<MaterialButton>(R.id.mtb_navigate).setOnClickListener {
 
 
-
             if (sourceSearchPoint == null || destinationSearchPoint == null) {
                 uiUtilInstance.showToast(ctx, "Enter source and destination")
                 closeDialog()
             } else if (FINDING_PATH) {
                 uiUtilInstance.showToast(ctx, "Request already in progress")
-            } else if(EVCarStorage.getCars(requireContext()).isEmpty()){
+            } else if (EVCarStorage.getCars(requireContext()).isEmpty()) {
                 uiUtilInstance.showToast(ctx, "No car found and selected. Add a car. ")
-            }else {
+            } else {
 
                 closeDialog()
                 if (root.findViewById<RadioButton>(R.id.radio_petrol).isChecked) {
 
                     ecoroute(
                         URLBuilder.createEcoroutePathQuery(
-                            sourceSearchPoint!!, destinationSearchPoint!!, initialSOC!!, "petrol", requireContext()
+                            sourceSearchPoint!!,
+                            destinationSearchPoint!!,
+                            initialSOC!!,
+                            "petrol",
+                            requireContext()
                         )
                     )
 
                 } else if (root.findViewById<RadioButton>(R.id.radio_energy).isChecked) {
                     ecoroute(
                         URLBuilder.createEcoroutePathQuery(
-                            sourceSearchPoint!!, destinationSearchPoint!!, initialSOC!!, "energy",requireContext()
+                            sourceSearchPoint!!,
+                            destinationSearchPoint!!,
+                            initialSOC!!,
+                            "energy",
+                            requireContext()
                         )
                     )
                 } else if (root.findViewById<RadioButton>(R.id.radio_time).isChecked) {
 
                     ecoroute(
                         URLBuilder.createEcoroutePathQuery(
-                            sourceSearchPoint!!, destinationSearchPoint!!, initialSOC!!, "time",requireContext()
+                            sourceSearchPoint!!,
+                            destinationSearchPoint!!,
+                            initialSOC!!,
+                            "time",
+                            requireContext()
                         )
                     )
 
                 } else {
                     ecoroute(
                         URLBuilder.createEcoroutePathQuery(
-                            sourceSearchPoint!!, destinationSearchPoint!!, initialSOC!!, "energy",requireContext()
+                            sourceSearchPoint!!,
+                            destinationSearchPoint!!,
+                            initialSOC!!,
+                            "energy",
+                            requireContext()
                         )
                     )
 
@@ -419,18 +433,25 @@ class RouteFragment : Fragment() {
 
         FINDING_PATH = true
         clearObservers()
-        viewModel.getOptimalPath(url).observe(viewLifecycleOwner, Observer { mResponse ->
+        try {
+            viewModel.getOptimalPath(url).observe(viewLifecycleOwner, Observer { mResponse ->
 
-            if (viewModel.successful.value != null) {
-                pb.visibility = View.INVISIBLE
-                FINDING_PATH = false
-                uiUtilInstance.showToast(ctx, viewModel.message.value.toString())
-                findRoute(mResponse)
+                if (viewModel.successful.value != null) {
+                    pb.visibility = View.INVISIBLE
+                    FINDING_PATH = false
+                    uiUtilInstance.showToast(ctx, viewModel.message.value.toString())
+                    findRoute(mResponse)
 
-            } else {
-                pb.visibility = View.VISIBLE
-            }
-        })
+                } else {
+                    pb.visibility = View.VISIBLE
+                }
+            })
+        } catch (e: Exception) {
+            Log.e(TAG, "Unable to find path ${e.cause} and ${e.message}")
+            uiUtilInstance.showToast(ctx, "Unable to find path")
+            FINDING_PATH = false
+            clearRouteAndStopNavigation()
+        }
     }
 
     private fun findRoute(mResponse: ArrayList<EcorouteResponse.EcorouteResponseItem>) {
@@ -472,6 +493,8 @@ class RouteFragment : Fragment() {
         NAVIGATION_IN_PROGRESS = true
         routemapboxNavigation.setNavigationRoutes(routes.toNavigationRoutes(routerOrigin))
 
+        val navBar = this.requireActivity().findViewById<BottomNavigationView>(R.id.nav_view)
+        navBar.visibility = View.GONE
 
         //startSimulation(routes.first())
 
@@ -888,6 +911,9 @@ class RouteFragment : Fragment() {
     }
 
     private fun clearRouteAndStopNavigation() {
+
+        val navBar = this.requireActivity().findViewById<BottomNavigationView>(R.id.nav_view)
+        navBar.visibility = View.VISIBLE
 
         clearObservers()
         hideUIElement()

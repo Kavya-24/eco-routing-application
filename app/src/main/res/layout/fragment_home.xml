@@ -14,8 +14,8 @@
         app:layout_constraintTop_toBottomOf="parent"
         mapbox:layout_constraintStart_toStartOf="parent"
         mapbox:layout_constraintTop_toTopOf="parent"
-        mapbox:mapbox_cameraTargetLat="25.5357"
-        mapbox:mapbox_cameraTargetLng="84.8512"
+        mapbox:mapbox_cameraTargetLat="28.56701"
+        mapbox:mapbox_cameraTargetLng="77.3353"
         mapbox:mapbox_cameraZoom="12" />
 
 

@@ -91,7 +91,7 @@ class HomeFragment : Fragment() {
 
     private fun onMapReady() {
 
-        homemapboxMap.loadStyle(style(styleUri = Style.TRAFFIC_DAY) {
+        homemapboxMap.loadStyle(style(styleUri = Style.OUTDOORS) {
 
 
         }, object : Style.OnStyleLoaded {
