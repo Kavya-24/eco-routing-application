@@ -1,6 +1,7 @@
 package com.example.ecoroute.ui.route
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.res.Configuration
 import android.location.Location
 import android.location.LocationManager
@@ -19,6 +20,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.example.ecoroute.R
 import com.example.ecoroute.models.responses.EcorouteResponse
+import com.example.ecoroute.ui.VisualPathActivity
 import com.example.ecoroute.ui.user.EVCarStorage
 import com.example.ecoroute.utils.*
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -41,6 +43,7 @@ import com.mapbox.maps.plugin.annotation.annotations
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.gestures.gestures
+import com.mapbox.navigation.base.ExperimentalPreviewMapboxNavigationAPI
 import com.mapbox.navigation.base.TimeFormat
 import com.mapbox.navigation.base.extensions.applyDefaultNavigationOptions
 import com.mapbox.navigation.base.extensions.applyLanguageAndVoiceUnitOptions
@@ -65,7 +68,7 @@ import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSou
 import com.mapbox.navigation.ui.maps.camera.lifecycle.NavigationBasicGesturesHandler
 import com.mapbox.navigation.ui.maps.camera.state.NavigationCameraState
 import com.mapbox.navigation.ui.maps.camera.transition.NavigationCameraTransitionOptions
-import com.mapbox.navigation.ui.maps.camera.view.MapboxRecenterButton
+//import com.mapbox.navigation.ui.maps.camera.view.MapboxRecenterButton
 import com.mapbox.navigation.ui.maps.camera.view.MapboxRouteOverviewButton
 import com.mapbox.navigation.ui.maps.location.NavigationLocationProvider
 import com.mapbox.navigation.ui.maps.route.arrow.api.MapboxRouteArrowApi
@@ -99,6 +102,7 @@ import java.util.*
 
 
 @SuppressLint("LogNotTimber", "StringFormatInvalid", "SetTextI18n")
+@ExperimentalPreviewMapboxNavigationAPI
 class RouteFragment : Fragment() {
 
     private val TAG = RouteFragment::class.java.simpleName
@@ -128,7 +132,9 @@ class RouteFragment : Fragment() {
         }
 
         override fun onNewLocationMatcherResult(locationMatcherResult: LocationMatcherResult) {
+
             val enhancedLocation = locationMatcherResult.enhancedLocation
+            Log.e(TAG, "LogStatement-Newoc: $enhancedLocation")
             navigationLocationProvider.changePosition(
                 location = enhancedLocation,
                 keyPoints = locationMatcherResult.keyPoints,
@@ -456,33 +462,43 @@ class RouteFragment : Fragment() {
 
     private fun findRoute(mResponse: ArrayList<EcorouteResponse.EcorouteResponseItem>) {
 
+
+
         val path_list = mutableListOf<Point>()
+        var path_string = ""
         for (item in mResponse) {
             path_list.add(Point.fromLngLat(item.lon.toDouble(), item.lat.toDouble()))
+            path_string += item.lon.toDouble().toString() + ","
+            path_string += item.lat.toDouble().toString() + ";"
         }
 
-        routemapboxNavigation.requestRoutes(RouteOptions.builder().applyDefaultNavigationOptions()
-            .applyLanguageAndVoiceUnitOptions(requireContext()).coordinatesList(path_list.toList())
-            .layersList(MapUtils.getDirectionLayers(path_list)).build(),
-            object : RouterCallback {
-                override fun onRoutesReady(
-                    routes: List<DirectionsRoute>, routerOrigin: RouterOrigin
-                ) {
+        val intent = Intent(requireContext(), VisualPathActivity::class.java)
+        intent.putExtra("coordinate", path_string)
+        startActivity(intent)
 
-                    setRouteAndStartNavigation(routes, routerOrigin)
-
-                }
-
-                override fun onFailure(
-                    reasons: List<RouterFailure>, routeOptions: RouteOptions
-                ) {
-                }
-
-                override fun onCanceled(
-                    routeOptions: RouteOptions, routerOrigin: RouterOrigin
-                ) {
-                }
-            })
+//
+//        routemapboxNavigation.requestRoutes(RouteOptions.builder().applyDefaultNavigationOptions()
+//            .applyLanguageAndVoiceUnitOptions(requireContext()).coordinatesList(path_list.toList())
+//            .layersList(MapUtils.getDirectionLayers(path_list)).build(),
+//            object : RouterCallback {
+//                override fun onRoutesReady(
+//                    routes: List<DirectionsRoute>, routerOrigin: RouterOrigin
+//                ) {
+//
+//                    setRouteAndStartNavigation(routes, routerOrigin)
+//
+//                }
+//
+//                override fun onFailure(
+//                    reasons: List<RouterFailure>, routeOptions: RouteOptions
+//                ) {
+//                }
+//
+//                override fun onCanceled(
+//                    routeOptions: RouteOptions, routerOrigin: RouterOrigin
+//                ) {
+//                }
+//            })
 
     }
 
@@ -574,16 +590,15 @@ class RouteFragment : Fragment() {
 
         navigationCamera.registerNavigationCameraStateChangeObserver { navigationCameraState ->
 
-
-            when (navigationCameraState) {
-                NavigationCameraState.TRANSITION_TO_FOLLOWING, NavigationCameraState.FOLLOWING -> root.findViewById<MapboxRecenterButton>(
-                    R.id.recenterRoute
-                ).visibility = View.INVISIBLE
-                NavigationCameraState.TRANSITION_TO_OVERVIEW, NavigationCameraState.OVERVIEW, NavigationCameraState.IDLE ->
-
-                    root.findViewById<MapboxRecenterButton>(R.id.recenterRoute).visibility =
-                        View.VISIBLE
-            }
+//            when (navigationCameraState) {
+//                NavigationCameraState.TRANSITION_TO_FOLLOWING, NavigationCameraState.FOLLOWING -> root.findViewById<MapboxRecenterButton>(
+//                    R.id.recenterRoute
+//                ).visibility = View.INVISIBLE
+//                NavigationCameraState.TRANSITION_TO_OVERVIEW, NavigationCameraState.OVERVIEW, NavigationCameraState.IDLE ->
+//
+//                    root.findViewById<MapboxRecenterButton>(R.id.recenterRoute).visibility =
+//                        View.VISIBLE
+//            }
         }
 
         if (this.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
@@ -648,18 +663,19 @@ class RouteFragment : Fragment() {
         root.findViewById<ImageView>(R.id.stopRoute).setOnClickListener {
             clearRouteAndStopNavigation()
         }
-        root.findViewById<MapboxRecenterButton>(R.id.recenterRoute).setOnClickListener {
-            navigationCamera.requestNavigationCameraToFollowing()
-            root.findViewById<MapboxRouteOverviewButton>(R.id.routeOverviewRoute).showTextAndExtend(
-                BUTTON_ANIMATION_DURATION
-            )
-        }
-        root.findViewById<MapboxRouteOverviewButton>(R.id.routeOverviewRoute).setOnClickListener {
-            navigationCamera.requestNavigationCameraToOverview()
-            root.findViewById<MapboxRecenterButton>(R.id.recenterRoute).showTextAndExtend(
-                BUTTON_ANIMATION_DURATION
-            )
-        }
+//        root.findViewById<MapboxRecenterButton>(R.id.recenterRoute).setOnClickListener {
+//            navigationCamera.requestNavigationCameraToFollowing()
+//            root.findViewById<MapboxRouteOverviewButton>(R.id.routeOverviewRoute).showTextAndExtend(
+//                BUTTON_ANIMATION_DURATION
+//            )
+//        }
+//        root.findViewById<MapboxRouteOverviewButton>(R.id.routeOverviewRoute).setOnClickListener {
+//            navigationCamera.requestNavigationCameraToOverview()
+//            root.findViewById<MapboxRecenterButton>(R.id.recenterRoute).showTextAndExtend(
+//                BUTTON_ANIMATION_DURATION
+//            )
+//        }
+
         root.findViewById<MapboxSoundButton>(R.id.soundButtonRoute).setOnClickListener {
             isVoiceInstructionsMuted = !isVoiceInstructionsMuted
         }

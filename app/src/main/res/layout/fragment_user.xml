@@ -3,6 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
+    android:id="@+id/csl_user"
     android:layout_height="match_parent"
     android:padding="@dimen/space_2x">
 
@@ -25,6 +26,16 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
+        <ImageView
+            android:id="@+id/info_user"
+            android:layout_width="@dimen/space_4x"
+            android:layout_height="@dimen/space_4x"
+            android:layout_margin="@dimen/space"
+            android:src="@drawable/baseline_info_24"
+            app:layout_constraintBottom_toBottomOf="@id/tvMyCars"
+            app:layout_constraintStart_toEndOf="@id/tvMyCars"
+            app:layout_constraintTop_toTopOf="@id/tvMyCars" />
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/mtb_add_car"
             android:layout_width="wrap_content"
@@ -36,9 +47,9 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <ImageView
+            android:id="@+id/img_no_car"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:id="@+id/img_no_car"
             android:src="@drawable/no_cars_found"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"

@@ -19,6 +19,9 @@ import com.example.ecoroute.models.EVCar
 import com.example.ecoroute.utils.ApplicationUtils
 import com.example.ecoroute.utils.UiUtils
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.snackbar.Snackbar
+import kotlinx.android.synthetic.main.fragment_home.*
+import kotlinx.android.synthetic.main.fragment_user.*
 
 @SuppressLint("LogNotTimber", "StringFormatInvalid", "SetTextI18n")
 class UserFragment : Fragment(), OnItemClickListener {
@@ -54,6 +57,13 @@ class UserFragment : Fragment(), OnItemClickListener {
 
         root.findViewById<MaterialButton>(R.id.mtb_add_car).setOnClickListener {
             findNavController().navigate(R.id.action_navigation_user_to_addCarFragment)
+        }
+        root.findViewById<ImageView>(R.id.info_user).setOnClickListener {
+            Snackbar.make(
+                csl_user,
+                "You can add, display and delete your cars.",
+                Snackbar.LENGTH_SHORT
+            ).show()
         }
 
         val current_ev_cars = EVCarStorage.getCars(requireContext())

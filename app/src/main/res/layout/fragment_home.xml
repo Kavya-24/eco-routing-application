@@ -16,7 +16,7 @@
         mapbox:layout_constraintTop_toTopOf="parent"
         mapbox:mapbox_cameraTargetLat="28.56701"
         mapbox:mapbox_cameraTargetLng="77.3353"
-        mapbox:mapbox_cameraZoom="12" />
+        mapbox:mapbox_cameraZoom="11" />
 
 
     <ProgressBar
@@ -28,4 +28,13 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <ImageView
+        android:id="@+id/info_home"
+        android:layout_width="@dimen/space_4x"
+        android:layout_height="@dimen/space_4x"
+        android:layout_marginLeft="@dimen/space"
+        android:layout_marginTop="@dimen/space_4x"
+        android:src="@drawable/baseline_info_24"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

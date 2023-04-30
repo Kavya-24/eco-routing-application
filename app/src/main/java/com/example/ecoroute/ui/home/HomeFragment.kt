@@ -9,6 +9,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.ProgressBar
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -19,7 +20,9 @@ import com.example.ecoroute.models.responses.NearbyStationsResponse
 import com.example.ecoroute.utils.ApplicationUtils
 import com.example.ecoroute.utils.URLBuilder
 import com.example.ecoroute.utils.UiUtils
+import com.google.android.material.snackbar.Snackbar
 import com.mapbox.geojson.Point
+import com.mapbox.maps.Image
 import com.mapbox.maps.MapView
 import com.mapbox.maps.MapboxMap
 import com.mapbox.maps.Style
@@ -38,6 +41,8 @@ import com.mapbox.navigation.ui.maps.camera.NavigationCamera
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 import com.mapbox.navigation.ui.maps.camera.lifecycle.NavigationBasicGesturesHandler
 import com.mapbox.navigation.ui.maps.location.NavigationLocationProvider
+import kotlinx.android.synthetic.main.fragment_home.*
+import kotlinx.android.synthetic.main.fragment_user.*
 
 
 @SuppressLint("LogNotTimber", "StringFormatInvalid", "SetTextI18n")
@@ -80,7 +85,13 @@ class HomeFragment : Fragment() {
         annotationApi = homeMapView.annotations
         pointAnnotationManager = annotationApi.createPointAnnotationManager()
 
-
+        root.findViewById<ImageView>(R.id.info_home).setOnClickListener {
+            Snackbar.make(
+                csl_home,
+                "Long press anywhere to get all the stations in the nearby vicinity",
+                Snackbar.LENGTH_SHORT
+            ).show()
+        }
 
         onMapReady()
 
@@ -140,14 +151,18 @@ class HomeFragment : Fragment() {
 
         val url = URLBuilder.createStationsInVicinityQuery(it)
         FINDING_STATION = true
+        pb.visibility = View.VISIBLE
         clearObservers()
         viewModel.getStationsInVicinity(url).observe(viewLifecycleOwner, Observer { mResponse ->
 
             if (viewModel.successful.value != null) {
+
                 pb.visibility = View.INVISIBLE
                 FINDING_STATION = false
                 uiUtilInstance.showToast(ctx, viewModel.message.value.toString())
-                markStations(mResponse)
+                if (viewModel.successful.value == true) {
+                    markStations(mResponse)
+                }
 
             } else {
                 pb.visibility = View.VISIBLE
