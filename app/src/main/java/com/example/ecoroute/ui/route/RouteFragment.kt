@@ -3,9 +3,7 @@ package com.example.ecoroute.ui.route
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.Configuration
-import android.graphics.drawable.Drawable
 import android.location.Location
-import android.location.LocationManager
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -14,7 +12,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
-import androidx.cardview.widget.CardView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -25,16 +22,10 @@ import com.example.ecoroute.models.responses.EcorouteResponse
 import com.example.ecoroute.ui.VisualPathActivity
 import com.example.ecoroute.ui.user.EVCarStorage
 import com.example.ecoroute.utils.*
-import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.slider.Slider
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputEditText
-import com.mapbox.android.core.location.LocationEngineCallback
-import com.mapbox.android.core.location.LocationEngineResult
-import com.mapbox.api.directions.v5.models.DirectionsRoute
-import com.mapbox.api.directions.v5.models.RouteOptions
-import com.mapbox.bindgen.Expected
 import com.mapbox.geojson.Point
 import com.mapbox.maps.MapView
 import com.mapbox.maps.MapboxMap
@@ -51,51 +42,19 @@ import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.maps.plugin.gestures.gestures
 import com.mapbox.maps.plugin.locationcomponent.location
 import com.mapbox.navigation.base.ExperimentalPreviewMapboxNavigationAPI
-import com.mapbox.navigation.base.TimeFormat
-import com.mapbox.navigation.base.extensions.applyDefaultNavigationOptions
-import com.mapbox.navigation.base.extensions.applyLanguageAndVoiceUnitOptions
 import com.mapbox.navigation.base.options.NavigationOptions
 import com.mapbox.navigation.base.route.*
 import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.MapboxNavigationProvider
-import com.mapbox.navigation.core.directions.session.RoutesObserver
-import com.mapbox.navigation.core.formatter.MapboxDistanceFormatter
-import com.mapbox.navigation.core.replay.MapboxReplayer
-import com.mapbox.navigation.core.replay.ReplayLocationEngine
-import com.mapbox.navigation.core.replay.route.ReplayProgressObserver
 import com.mapbox.navigation.core.trip.session.LocationMatcherResult
 import com.mapbox.navigation.core.trip.session.LocationObserver
-import com.mapbox.navigation.core.trip.session.RouteProgressObserver
-import com.mapbox.navigation.core.trip.session.VoiceInstructionsObserver
-import com.mapbox.navigation.ui.base.util.MapboxNavigationConsumer
-import com.mapbox.navigation.ui.maneuver.api.MapboxManeuverApi
-import com.mapbox.navigation.ui.maneuver.view.MapboxManeuverView
 import com.mapbox.navigation.ui.maps.camera.NavigationCamera
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 import com.mapbox.navigation.ui.maps.camera.lifecycle.NavigationBasicGesturesHandler
-import com.mapbox.navigation.ui.maps.camera.state.NavigationCameraState
 import com.mapbox.navigation.ui.maps.camera.transition.NavigationCameraTransitionOptions
 //import com.mapbox.navigation.ui.maps.camera.view.MapboxRecenterButton
-import com.mapbox.navigation.ui.maps.camera.view.MapboxRouteOverviewButton
 import com.mapbox.navigation.ui.maps.location.NavigationLocationProvider
-import com.mapbox.navigation.ui.maps.route.arrow.api.MapboxRouteArrowApi
-import com.mapbox.navigation.ui.maps.route.arrow.api.MapboxRouteArrowView
-import com.mapbox.navigation.ui.maps.route.arrow.model.RouteArrowOptions
-import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineApi
-import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineView
-import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineOptions
-import com.mapbox.navigation.ui.maps.route.line.model.RouteLine
-import com.mapbox.navigation.ui.maps.route.line.model.toNavigationRouteLines
-import com.mapbox.navigation.ui.tripprogress.api.MapboxTripProgressApi
 import com.mapbox.navigation.ui.tripprogress.model.*
-import com.mapbox.navigation.ui.tripprogress.view.MapboxTripProgressView
-import com.mapbox.navigation.ui.voice.api.MapboxSpeechApi
-import com.mapbox.navigation.ui.voice.api.MapboxVoiceInstructionsPlayer
-import com.mapbox.navigation.ui.voice.model.SpeechAnnouncement
-import com.mapbox.navigation.ui.voice.model.SpeechError
-import com.mapbox.navigation.ui.voice.model.SpeechValue
-import com.mapbox.navigation.ui.voice.model.SpeechVolume
-import com.mapbox.navigation.ui.voice.view.MapboxSoundButton
 import com.mapbox.search.OfflineSearchEngineSettings
 import com.mapbox.search.ResponseInfo
 import com.mapbox.search.SearchEngineSettings
@@ -352,23 +311,33 @@ class RouteFragment : Fragment() {
 
         FINDING_PATH = true
         clearObservers()
+        pb.visibility = View.VISIBLE
+        val csl = root.findViewById<ConstraintLayout>(R.id.csl_route)
+        viewModel.in_progress.value = true
+
+        viewModel.in_progress.observe(viewLifecycleOwner, Observer { it ->
+            FINDING_PATH = it
+        })
+
         try {
-            viewModel.getOptimalPath(url).observe(viewLifecycleOwner, Observer { mResponse ->
+            viewModel.getOptimalPath(url, pb, csl)
+                .observe(viewLifecycleOwner, Observer { mResponse ->
 
-                if (viewModel.successful.value != null) {
-                    pb.visibility = View.INVISIBLE
-                    FINDING_PATH = false
-                    uiUtilInstance.showToast(ctx, viewModel.message.value.toString())
-                    findRoute(mResponse)
+                    if (viewModel.successful.value != null) {
+                        pb.visibility = View.INVISIBLE
+                        FINDING_PATH = false
+                        uiUtilInstance.showToast(ctx, viewModel.message.value.toString())
+                        findRoute(mResponse)
 
-                } else {
-                    pb.visibility = View.VISIBLE
-                }
-            })
+                    } else {
+                        pb.visibility = View.VISIBLE
+                    }
+                })
         } catch (e: Exception) {
             Log.e(TAG, "Unable to find path ${e.cause} and ${e.message}")
             uiUtilInstance.showToast(ctx, "Unable to find path")
             FINDING_PATH = false
+            pb.visibility = View.INVISIBLE
 
         }
     }
@@ -529,7 +498,9 @@ class RouteFragment : Fragment() {
 
                 override fun onTextChanged(s: CharSequence, start: Int, before: Int, after: Int) {
                     if (!s.toString().isEmpty()) {
+                        root.findViewById<SearchResultsView>(R.id.sv_src).visibility = View.VISIBLE
                         root.findViewById<SearchResultsView>(R.id.sv_src).search(s.toString())
+
                     }
 
                 }
@@ -537,7 +508,7 @@ class RouteFragment : Fragment() {
                 override fun beforeTextChanged(
                     s: CharSequence, start: Int, count: Int, after: Int
                 ) {
-                    root.findViewById<SearchResultsView>(R.id.sv_src).visibility = View.VISIBLE
+                    root.findViewById<SearchResultsView>(R.id.sv_src).visibility = View.GONE
                 }
 
                 override fun afterTextChanged(e: Editable) {
@@ -551,6 +522,7 @@ class RouteFragment : Fragment() {
 
                 override fun onTextChanged(s: CharSequence, start: Int, before: Int, after: Int) {
                     if (!s.toString().isEmpty()) {
+                        root.findViewById<SearchResultsView>(R.id.sv_dst).visibility = View.VISIBLE
                         root.findViewById<SearchResultsView>(R.id.sv_dst).search(s.toString())
                     }
 
@@ -560,7 +532,7 @@ class RouteFragment : Fragment() {
                 override fun beforeTextChanged(
                     s: CharSequence, start: Int, count: Int, after: Int
                 ) {
-                    root.findViewById<SearchResultsView>(R.id.sv_dst).visibility = View.VISIBLE
+                    root.findViewById<SearchResultsView>(R.id.sv_dst).visibility = View.GONE
                 }
 
                 override fun afterTextChanged(e: Editable) {
@@ -706,7 +678,7 @@ class RouteFragment : Fragment() {
         t_dst_started = false
         t_src = null
         t_dst = null
-
+        pointAnnotationManager.deleteAll()
 
     }
 
@@ -717,7 +689,7 @@ class RouteFragment : Fragment() {
         t_dst_started = false
         t_src = null
         t_dst = null
-
+        pointAnnotationManager.deleteAll()
 
     }
 
@@ -742,6 +714,7 @@ class RouteFragment : Fragment() {
         viewModel.successful.value = null
         viewModel.message.removeObservers(this)
         viewModel.message.value = null
+
     }
 
 

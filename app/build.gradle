@@ -47,6 +47,8 @@ android {
     packagingOptions {
         pickFirst "lib/**/libc++_shared.so"
     }
+
+
 }
 
 dependencies {
@@ -72,6 +74,7 @@ dependencies {
     implementation 'com.mapbox.maps:android:10.7.0'
     implementation "com.mapbox.search:mapbox-search-android-ui:1.0.0-beta.34"
     implementation "com.mapbox.navigation:android:2.6.0"
+
 
     //RecyclerView
     implementation "androidx.recyclerview:recyclerview-selection:1.1.0-rc03"

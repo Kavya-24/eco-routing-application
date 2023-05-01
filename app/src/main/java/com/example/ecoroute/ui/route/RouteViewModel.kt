@@ -2,33 +2,40 @@ package com.example.ecoroute.ui.route
 
 import android.annotation.SuppressLint
 import android.util.Log
+import android.view.View
+import android.widget.ProgressBar
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.ecoroute.interfaces.RetrofitClient
 import com.example.ecoroute.models.responses.EcorouteResponse
 import com.example.ecoroute.utils.UiUtils
+import com.google.android.material.snackbar.Snackbar
 import retrofit2.Call
 import retrofit2.Response
 
 @SuppressLint("LogNotTimber", "StringFormatInvalid", "SetTextI18n")
 class RouteViewModel : ViewModel() {
 
+
     val TAG = RouteViewModel::class.java.simpleName
     private val ecorouteService = RetrofitClient.ecorouteInterface()
 
     var successful: MutableLiveData<Boolean> = MutableLiveData()
     var message: MutableLiveData<String> = MutableLiveData()
+    var in_progress : MutableLiveData<Boolean> = MutableLiveData()
+
     private var mResponse: MutableLiveData<ArrayList<EcorouteResponse.EcorouteResponseItem>> =
         MutableLiveData()
 
-    fun getOptimalPath(url: String): MutableLiveData<ArrayList<EcorouteResponse.EcorouteResponseItem>> {
+    fun getOptimalPath(url: String, pb: ProgressBar, csl: ConstraintLayout): MutableLiveData<ArrayList<EcorouteResponse.EcorouteResponseItem>> {
 
-        mResponse = optimalPath(url)
+        mResponse = optimalPath(url,pb,csl)
         return mResponse
     }
 
 
-    private fun optimalPath(url: String): MutableLiveData<ArrayList<EcorouteResponse.EcorouteResponseItem>> {
+    private fun optimalPath(url: String, pb: ProgressBar, csl: ConstraintLayout): MutableLiveData<ArrayList<EcorouteResponse.EcorouteResponseItem>> {
 
 
         Log.e(TAG, "PathURL:  $url")
@@ -41,8 +48,11 @@ class RouteViewModel : ViewModel() {
                     t: Throwable
                 ) {
                     successful.value = false
+                    in_progress.value = false
                     message.value = UiUtils().returnStateMessageForThrowable(t)
                     UiUtils().logThrowables(TAG, t)
+                    pb.visibility = View.INVISIBLE
+                    Snackbar.make(csl, "Unable to find path", Snackbar.LENGTH_SHORT).show()
 
                 }
 
@@ -51,6 +61,7 @@ class RouteViewModel : ViewModel() {
                     response: Response<ArrayList<EcorouteResponse.EcorouteResponseItem>>
                 ) {
 
+                    in_progress.value = false
                     Log.e(TAG, "Response: $response")
                     if (response.isSuccessful && response.body() != null) {
 

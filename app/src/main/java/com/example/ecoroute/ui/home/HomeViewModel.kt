@@ -2,15 +2,15 @@ package com.example.ecoroute.ui.home
 
 import android.annotation.SuppressLint
 import android.util.Log
+import android.view.View
+import android.widget.ProgressBar
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.ecoroute.interfaces.RetrofitClient
 import com.example.ecoroute.models.responses.NearbyStationsResponse
 import com.example.ecoroute.utils.UiUtils
-import com.squareup.moshi.JsonAdapter
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.Types
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import com.google.android.material.snackbar.Snackbar
 import retrofit2.Call
 import retrofit2.Response
 
@@ -27,14 +27,14 @@ class HomeViewModel : ViewModel() {
     var message: MutableLiveData<String> = MutableLiveData()
     private var mResponse: MutableLiveData<ArrayList<NearbyStationsResponse.NearbyStationsResponseItem>> = MutableLiveData()
 
-    fun getStationsInVicinity(url: String): MutableLiveData<ArrayList<NearbyStationsResponse.NearbyStationsResponseItem>> {
+    fun getStationsInVicinity(url: String, pb : ProgressBar, csl : ConstraintLayout): MutableLiveData<ArrayList<NearbyStationsResponse.NearbyStationsResponseItem>> {
 
-        mResponse = vicinityStationsFunction(url)
+        mResponse = vicinityStationsFunction(url,pb,csl)
         return mResponse
     }
 
 
-    private fun vicinityStationsFunction(url: String): MutableLiveData<ArrayList<NearbyStationsResponse.NearbyStationsResponseItem>> {
+    private fun vicinityStationsFunction(url: String, pb: ProgressBar, csl: ConstraintLayout): MutableLiveData<ArrayList<NearbyStationsResponse.NearbyStationsResponseItem>> {
 
 
         Log.e(TAG, "Stations in Vicinity URL: $url")
@@ -45,6 +45,8 @@ class HomeViewModel : ViewModel() {
                     successful.value = false
                     message.value = UiUtils().returnStateMessageForThrowable(t)
                     UiUtils().logThrowables(TAG, t)
+                    pb.visibility = View.INVISIBLE
+                    Snackbar.make(csl,  message.value.toString(), Snackbar.LENGTH_SHORT).show()
 
                 }
 

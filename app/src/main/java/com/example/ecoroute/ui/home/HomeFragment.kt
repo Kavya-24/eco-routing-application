@@ -11,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.ProgressBar
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -150,10 +151,11 @@ class HomeFragment : Fragment() {
     private fun loadStations(it: Point) {
 
         val url = URLBuilder.createStationsInVicinityQuery(it)
+        val csl = root.findViewById<ConstraintLayout>(R.id.csl_home)
         FINDING_STATION = true
         pb.visibility = View.VISIBLE
         clearObservers()
-        viewModel.getStationsInVicinity(url).observe(viewLifecycleOwner, Observer { mResponse ->
+        viewModel.getStationsInVicinity(url,pb,csl).observe(viewLifecycleOwner, Observer { mResponse ->
 
             if (viewModel.successful.value != null) {
 

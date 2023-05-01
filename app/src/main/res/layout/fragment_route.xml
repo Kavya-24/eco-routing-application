@@ -54,12 +54,11 @@
         android:id="@+id/pbRoute"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_margin="@dimen/space_2x"
+        android:layout_margin="@dimen/space"
         android:visibility="invisible"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintBottom_toBottomOf="@id/mtbOpenDialog"
+        app:layout_constraintEnd_toStartOf="@id/iv_go_query"
+        app:layout_constraintTop_toTopOf="@id/mtbOpenDialog" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/csl_route_dialog"
