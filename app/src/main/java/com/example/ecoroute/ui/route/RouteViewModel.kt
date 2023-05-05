@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.util.Log
 import android.view.View
 import android.widget.ProgressBar
+import androidx.annotation.Keep
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -15,6 +16,7 @@ import retrofit2.Call
 import retrofit2.Response
 
 @SuppressLint("LogNotTimber", "StringFormatInvalid", "SetTextI18n")
+@Keep
 class RouteViewModel : ViewModel() {
 
 

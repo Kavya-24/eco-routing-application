@@ -1,5 +1,8 @@
 package com.example.ecoroute.utils
 
+import androidx.annotation.Keep
+
+@Keep
 object ConnectorType {
 
     fun extarct_suitable_connector(): MutableList<String> {

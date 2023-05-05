@@ -2,9 +2,10 @@ package com.example.ecoroute.utils
 
 import android.content.res.Resources
 import android.util.Log
+import androidx.annotation.Keep
 import com.mapbox.geojson.Point
 import com.mapbox.maps.EdgeInsets
-
+@Keep
 object MapUtils {
 
 

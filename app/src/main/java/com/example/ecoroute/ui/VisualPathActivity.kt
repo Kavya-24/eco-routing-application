@@ -1,46 +1,24 @@
 package com.example.ecoroute.ui
 
 
+import com.example.ecoroute.R
 import android.annotation.SuppressLint
 import android.content.res.Configuration
 import android.content.res.Resources
-import com.example.ecoroute.R
-import com.mapbox.navigation.core.replay.MapboxReplayer
-import com.mapbox.navigation.core.replay.ReplayLocationEngine
-import com.mapbox.navigation.core.replay.route.ReplayProgressObserver
-import com.mapbox.navigation.core.trip.session.LocationMatcherResult
-import com.mapbox.navigation.core.trip.session.LocationObserver
-import com.mapbox.navigation.core.trip.session.VoiceInstructionsObserver
-import com.mapbox.navigation.ui.base.util.MapboxNavigationConsumer
-import com.mapbox.navigation.ui.maneuver.api.MapboxManeuverApi
-import com.mapbox.navigation.ui.maps.camera.NavigationCamera
-import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
-import com.mapbox.navigation.ui.maps.camera.transition.NavigationCameraTransitionOptions
-import com.mapbox.navigation.ui.maps.location.NavigationLocationProvider
-import com.mapbox.navigation.ui.maps.route.arrow.api.MapboxRouteArrowApi
-import com.mapbox.navigation.ui.maps.route.arrow.api.MapboxRouteArrowView
-import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineApi
-import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineView
-import com.mapbox.navigation.ui.tripprogress.api.MapboxTripProgressApi
-import com.mapbox.navigation.ui.voice.api.MapboxSpeechApi
-import com.mapbox.navigation.ui.voice.api.MapboxVoiceInstructionsPlayer
-import com.mapbox.navigation.ui.voice.model.SpeechAnnouncement
-import com.mapbox.navigation.ui.voice.model.SpeechError
-import com.mapbox.navigation.ui.voice.model.SpeechValue
-import com.mapbox.navigation.ui.voice.model.SpeechVolume
-import com.mapbox.navigation.ui.voice.view.MapboxSoundButton
-import kotlinx.android.synthetic.main.activity_visual_path.*
 import android.location.Location
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.ImageView
 import android.widget.Toast
+import androidx.annotation.Keep
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
+import com.example.ecoroute.utils.ApplicationUtils
 import com.example.ecoroute.utils.MapUtils
 import com.example.ecoroute.utils.UiUtils
+import com.mapbox.api.directions.v5.models.Bearing
 import com.mapbox.api.directions.v5.models.DirectionsRoute
 import com.mapbox.api.directions.v5.models.RouteOptions
 import com.mapbox.bindgen.Expected
@@ -66,25 +44,64 @@ import com.mapbox.navigation.base.extensions.applyLanguageAndVoiceUnitOptions
 import com.mapbox.navigation.base.formatter.DistanceFormatterOptions
 import com.mapbox.navigation.base.options.NavigationOptions
 import com.mapbox.navigation.base.route.*
+import com.mapbox.navigation.base.trip.model.RouteProgress
 import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.MapboxNavigationProvider
 import com.mapbox.navigation.core.directions.session.RoutesObserver
 import com.mapbox.navigation.core.formatter.MapboxDistanceFormatter
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
+import com.mapbox.navigation.core.lifecycle.MapboxNavigationObserver
+//import com.mapbox.navigation.core.lifecycle.requireMapboxNavigation
+import com.mapbox.navigation.core.replay.MapboxReplayer
+import com.mapbox.navigation.core.replay.ReplayLocationEngine
+import com.mapbox.navigation.core.replay.route.ReplayProgressObserver
+import com.mapbox.navigation.core.replay.route.ReplayRouteMapper
+import com.mapbox.navigation.core.trip.session.LocationMatcherResult
+import com.mapbox.navigation.core.trip.session.LocationObserver
 import com.mapbox.navigation.core.trip.session.RouteProgressObserver
+import com.mapbox.navigation.core.trip.session.VoiceInstructionsObserver
+import com.mapbox.navigation.ui.base.util.MapboxNavigationConsumer
+import com.mapbox.navigation.ui.maneuver.api.MapboxManeuverApi
 import com.mapbox.navigation.ui.maneuver.view.MapboxManeuverView
+
+import com.mapbox.navigation.ui.maps.NavigationStyles
+import com.mapbox.navigation.ui.maps.camera.NavigationCamera
+import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 import com.mapbox.navigation.ui.maps.camera.lifecycle.NavigationBasicGesturesHandler
 import com.mapbox.navigation.ui.maps.camera.state.NavigationCameraState
+import com.mapbox.navigation.ui.maps.camera.transition.NavigationCameraTransitionOptions
 import com.mapbox.navigation.ui.maps.camera.view.MapboxRecenterButton
 import com.mapbox.navigation.ui.maps.camera.view.MapboxRouteOverviewButton
+import com.mapbox.navigation.ui.maps.location.NavigationLocationProvider
+import com.mapbox.navigation.ui.maps.route.arrow.api.MapboxRouteArrowApi
+import com.mapbox.navigation.ui.maps.route.arrow.api.MapboxRouteArrowView
 import com.mapbox.navigation.ui.maps.route.arrow.model.RouteArrowOptions
+import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineApi
+import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineView
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineOptions
-import com.mapbox.navigation.ui.tripprogress.model.*
-import com.mapbox.navigation.ui.tripprogress.view.MapboxTripProgressView
-import java.util.*
 
-@ExperimentalPreviewMapboxNavigationAPI
+import com.mapbox.navigation.ui.tripprogress.api.MapboxTripProgressApi
+import com.mapbox.navigation.ui.tripprogress.model.DistanceRemainingFormatter
+import com.mapbox.navigation.ui.tripprogress.model.EstimatedTimeToArrivalFormatter
+import com.mapbox.navigation.ui.tripprogress.model.PercentDistanceTraveledFormatter
+import com.mapbox.navigation.ui.tripprogress.model.TimeRemainingFormatter
+import com.mapbox.navigation.ui.tripprogress.model.TripProgressUpdateFormatter
+import com.mapbox.navigation.ui.tripprogress.view.MapboxTripProgressView
+import com.mapbox.navigation.ui.voice.api.MapboxSpeechApi
+import com.mapbox.navigation.ui.voice.api.MapboxVoiceInstructionsPlayer
+import com.mapbox.navigation.ui.voice.model.SpeechAnnouncement
+import com.mapbox.navigation.ui.voice.model.SpeechError
+import com.mapbox.navigation.ui.voice.model.SpeechValue
+import com.mapbox.navigation.ui.voice.model.SpeechVolume
+import com.mapbox.navigation.ui.voice.view.MapboxSoundButton
+import java.util.Date
+import java.util.Locale
+@Keep
+@OptIn(ExperimentalPreviewMapboxNavigationAPI::class)
+@SuppressLint("MissingPermission")
 class VisualPathActivity : AppCompatActivity() {
+
+
     private companion object {
         private const val BUTTON_ANIMATION_DURATION = 0L
     }
@@ -313,6 +330,8 @@ class VisualPathActivity : AppCompatActivity() {
      */
     private val routeProgressObserver = RouteProgressObserver { routeProgress ->
         // update the camera position to account for the progressed fragment of the route
+
+
         viewportDataSource.onRouteProgressChanged(routeProgress)
         viewportDataSource.evaluate()
 
@@ -391,12 +410,14 @@ class VisualPathActivity : AppCompatActivity() {
         MapboxNavigationProvider.retrieve()
     } else {
         MapboxNavigationProvider.create(
-            NavigationOptions.Builder(this)
+            NavigationOptions.Builder(ApplicationUtils.getContext())
                 .accessToken(getString(R.string.mapbox_access_token))
                 //.locationEngine(replayLocationEngine)
                 .build()
         )
     }
+
+
     private val TAG = VisualPathActivity::class.java.simpleName
 
     @SuppressLint("MissingPermission")
@@ -501,18 +522,22 @@ class VisualPathActivity : AppCompatActivity() {
         routeArrowView = MapboxRouteArrowView(routeArrowOptions)
 
 
-        findViewById<MapView>(R.id.path_mapView).getMapboxMap().loadStyle(style(styleUri = Style.TRAFFIC_DAY) {
-        }, object : Style.OnStyleLoaded {
-            override fun onStyleLoaded(style: Style) {
-                findViewById<MapView>(R.id.path_mapView).gestures.addOnMapLongClickListener { it ->
-                    true
+        findViewById<MapView>(R.id.path_mapView).getMapboxMap()
+            .loadStyle(style(styleUri = Style.TRAFFIC_DAY) {
+            }, object : Style.OnStyleLoaded {
+                override fun onStyleLoaded(style: Style) {
+                    findViewById<MapView>(R.id.path_mapView).gestures.addOnMapLongClickListener { it ->
+                        true
+                    }
                 }
             }
-        }
-        )
+            )
 
         // initialize view interactions
         findViewById<ImageView>(R.id.path_stop).setOnClickListener {
+            clearRouteAndStopNavigation()
+        }
+        findViewById<ImageView>(R.id.path_stop_final).setOnClickListener {
             clearRouteAndStopNavigation()
         }
         findViewById<MapboxRecenterButton>(R.id.path_recenter).setOnClickListener {
@@ -535,6 +560,8 @@ class VisualPathActivity : AppCompatActivity() {
         // set initial sounds button state
         findViewById<MapboxSoundButton>(R.id.path_soundButton).unmute()
 
+
+        // initialize location puck
         findViewById<MapView>(R.id.path_mapView).location.apply {
             setLocationProvider(navigationLocationProvider)
             this.locationPuck = LocationPuck2D(
@@ -546,26 +573,26 @@ class VisualPathActivity : AppCompatActivity() {
             enabled = true
         }
 
-
-
         start_navigation(coordinate_string)
+
     }
+
 
     private fun start_navigation(coordinateString: String?) {
 
 
-        if(coordinateString == null || coordinateString.isEmpty()){
+        if (coordinateString == null || coordinateString.isEmpty()) {
             Toast.makeText(this, "Unable to load navigation path", Toast.LENGTH_SHORT).show()
             return
         }
         val coordiantes = coordinateString.split(';')
         val path_list = mutableListOf<Point>()
         for (item in coordiantes) {
-            if(item.isEmpty()){
+            if (item.isEmpty()) {
                 continue
             }
             val i = item.split(',')
-            path_list.add(Point.fromLngLat(i[0].toDouble(),i[1].toDouble()))
+            path_list.add(Point.fromLngLat(i[0].toDouble(), i[1].toDouble()))
         }
 
 
@@ -627,6 +654,7 @@ class VisualPathActivity : AppCompatActivity() {
 
     }
 
+
     override fun onStart() {
         super.onStart()
         findViewById<MapView>(R.id.path_mapView).onStart()
@@ -635,8 +663,9 @@ class VisualPathActivity : AppCompatActivity() {
             mapboxNavigation.registerRoutesObserver(routesObserver)
             mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
             mapboxNavigation.registerLocationObserver(locationObserver)
-            mapboxNavigation.registerVoiceInstructionsObserver(voiceInstructionsObserver)
+//            mapboxNavigation.registerVoiceInstructionsObserver(voiceInstructionsObserver)
             mapboxNavigation.registerRouteProgressObserver(replayProgressObserver)
+//            mapboxNavigation.startTripSession()
 
         } catch (e: Exception) {
             Toast.makeText(
@@ -646,6 +675,25 @@ class VisualPathActivity : AppCompatActivity() {
             ).show()
         }
 
+    }
+
+    override fun onResume() {
+        super.onResume()
+        try {
+            mapboxNavigation.registerRoutesObserver(routesObserver)
+            mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
+            mapboxNavigation.registerLocationObserver(locationObserver)
+//            mapboxNavigation.registerVoiceInstructionsObserver(voiceInstructionsObserver)
+            mapboxNavigation.registerRouteProgressObserver(replayProgressObserver)
+//            mapboxNavigation.startTripSession()
+
+        } catch (e: Exception) {
+            Toast.makeText(
+                this,
+                "Restart the application after giving location permissions",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 
     override fun onStop() {
@@ -658,7 +706,7 @@ class VisualPathActivity : AppCompatActivity() {
         mapboxNavigation.unregisterRoutesObserver(routesObserver)
         mapboxNavigation.unregisterRouteProgressObserver(routeProgressObserver)
         mapboxNavigation.unregisterLocationObserver(locationObserver)
-        mapboxNavigation.unregisterVoiceInstructionsObserver(voiceInstructionsObserver)
+//        mapboxNavigation.unregisterVoiceInstructionsObserver(voiceInstructionsObserver)
         mapboxNavigation.unregisterRouteProgressObserver(replayProgressObserver)
 
     }
@@ -691,18 +739,41 @@ class VisualPathActivity : AppCompatActivity() {
     ) {
 
         NAVIGATION_IN_PROGRESS = true
-        Log.e(TAG, "Routes: $routes" )
+
+
+//        Log.e(TAG, "Route[0] " + routes[0].legs()?.get(0)?.steps()?.get(0)?.maneuver()?.type().toString())
+        val m = maneuverApi.getManeuvers(routes[0])
+        m.fold(
+            { error ->
+                Toast.makeText(
+                    this,
+                    error.errorMessage,
+                    Toast.LENGTH_SHORT
+                ).show()
+            },
+            {
+                findViewById<MapboxManeuverView>(R.id.path_maneuverView).visibility = View.VISIBLE
+                findViewById<MapboxManeuverView>(R.id.path_maneuverView).renderManeuvers(m)
+            }
+        )
+
+
         mapboxNavigation.setNavigationRoutes(routes.toNavigationRoutes(routerOrigin))
+
 
         //mark the source and destination
         mark(path_list[0].latitude(), path_list[0].longitude(), R.drawable.source_location)
-        mark(path_list[path_list.size-1].latitude(), path_list[path_list.size-1].longitude(), R.drawable.destination_locatiom)
+        mark(
+            path_list[path_list.size - 1].latitude(),
+            path_list[path_list.size - 1].longitude(),
+            R.drawable.destination_locatiom
+        )
 
 
-//        findViewById<MapboxSoundButton>(R.id.path_soundButton).visibility = View.VISIBLE
-//        findViewById<MapboxManeuverView>(R.id.path_maneuverView).visibility = View.VISIBLE
-//        findViewById<MapboxRouteOverviewButton>(R.id.path_routeOverview).visibility = View.VISIBLE
-//        findViewById<CardView>(R.id.path_tripProgressCard).visibility = View.VISIBLE
+        findViewById<MapboxSoundButton>(R.id.path_soundButton).visibility = View.GONE
+        findViewById<MapboxManeuverView>(R.id.path_maneuverView).visibility = View.VISIBLE
+        findViewById<MapboxRouteOverviewButton>(R.id.path_routeOverview).visibility = View.GONE
+        findViewById<CardView>(R.id.path_tripProgressCard).visibility = View.GONE
 
 
         //startSimulation(routes.first())
@@ -724,6 +795,8 @@ class VisualPathActivity : AppCompatActivity() {
         findViewById<MapboxManeuverView>(R.id.path_maneuverView).visibility = View.INVISIBLE
         findViewById<MapboxRouteOverviewButton>(R.id.path_routeOverview).visibility = View.INVISIBLE
         findViewById<CardView>(R.id.path_tripProgressCard).visibility = View.INVISIBLE
+
+        onBackPressed()
     }
 
     private fun mark(_latitude: Double, _longitude: Double, dr: Int) {
@@ -746,7 +819,10 @@ class VisualPathActivity : AppCompatActivity() {
 
     }
 
-
+    override fun onBackPressed() {
+        super.onBackPressed()
+        finish()
+    }
 }
 
 

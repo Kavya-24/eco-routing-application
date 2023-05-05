@@ -2,11 +2,12 @@ package com.example.ecoroute.ui.user
 
 import com.squareup.moshi.Moshi
 import android.content.Context
+import androidx.annotation.Keep
 import com.example.ecoroute.models.EVCar
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Types
 
-
+@Keep
 object EVCarStorage {
     private const val SHARED_PREFS_NAME = "ev_cars_prefs"
     private const val EV_CARS_KEY = "ev_cars_key"

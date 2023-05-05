@@ -11,6 +11,7 @@ import android.widget.ProgressBar
 import android.widget.RadioButton
 import android.widget.TextView
 import android.widget.Toast
+import androidx.annotation.Keep
 import androidx.fragment.app.findFragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
@@ -23,7 +24,7 @@ import com.example.ecoroute.utils.UiUtils
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 
-
+@Keep
 class AddCarFragment : Fragment() {
     private val TAG = AddCarFragment::class.java.simpleName
     private lateinit var root: View

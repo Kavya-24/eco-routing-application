@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.annotation.Keep
 import androidx.cardview.widget.CardView
 import androidx.recyclerview.widget.RecyclerView
 
@@ -16,7 +17,7 @@ import com.example.ecoroute.ui.user.EVCarStorage
 import com.google.android.material.button.MaterialButton
 import okhttp3.internal.notifyAll
 
-
+@Keep
 @SuppressLint("SetTextI18n")
 class EVCarsListAdapter(val itemClick: OnItemClickListener) :
     RecyclerView.Adapter<EVCarsListAdapter.MyViewHolder>() {

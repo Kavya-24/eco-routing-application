@@ -1,8 +1,9 @@
 package com.example.ecoroute.models.responses
 
 
+import androidx.annotation.Keep
 import com.squareup.moshi.Json
-
+@Keep
 class EcorouteResponse : ArrayList<EcorouteResponse.EcorouteResponseItem>(){
     data class EcorouteResponseItem(
         @Json(name = "lat")

@@ -13,13 +13,14 @@ import android.widget.AutoCompleteTextView
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.annotation.DrawableRes
+import androidx.annotation.Keep
 import androidx.appcompat.content.res.AppCompatResources
 import com.example.ecoroute.R
 import com.google.android.material.snackbar.Snackbar
 import retrofit2.HttpException
 import java.io.IOException
 import java.util.concurrent.TimeoutException
-
+@Keep
 @SuppressLint("LogNotTimber", "StringFormatInvalid", "SetTextI18n")
 class UiUtils {
 

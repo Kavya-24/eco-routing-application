@@ -1,8 +1,9 @@
 package com.example.ecoroute.models.responses
 
 
+import androidx.annotation.Keep
 import com.squareup.moshi.Json
-
+@Keep
 data class GeoCodedQueryResponse(
     @Json(name = "attribution")
     val attribution: String, // NOTICE: © 2022 Mapbox and its suppliers. All rights reserved. Use of this data is subject to the Mapbox Terms of Service (https://www.mapbox.com/about/maps/). This response and the information it contains may not be retained. POI(s) provided by Foursquare.

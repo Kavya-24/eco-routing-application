@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:mapbox="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -9,9 +8,6 @@
         android:id="@+id/path_mapView"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        mapbox:mapbox_cameraTargetLat="28.56701"
-        mapbox:mapbox_cameraTargetLng="77.3353"
-        mapbox:mapbox_cameraZoom="4"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -82,6 +78,13 @@
         app:layout_constraintTop_toBottomOf="@id/path_routeOverview" />
 
 
-
+    <ImageView
+        android:id="@+id/path_stop_final"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_gravity="end|center_vertical"
+        android:layout_margin="@dimen/space"
+        app:srcCompat="@android:drawable/ic_delete" />
 </androidx.constraintlayout.widget.ConstraintLayout>
-

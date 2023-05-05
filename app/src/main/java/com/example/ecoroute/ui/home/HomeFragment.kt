@@ -11,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.ProgressBar
+import androidx.annotation.Keep
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -47,6 +48,7 @@ import kotlinx.android.synthetic.main.fragment_user.*
 
 
 @SuppressLint("LogNotTimber", "StringFormatInvalid", "SetTextI18n")
+
 class HomeFragment : Fragment() {
 
 
@@ -103,7 +105,7 @@ class HomeFragment : Fragment() {
 
     private fun onMapReady() {
 
-        homemapboxMap.loadStyle(style(styleUri = Style.OUTDOORS) {
+        homemapboxMap.loadStyle(style(styleUri = Style.TRAFFIC_DAY) {
 
 
         }, object : Style.OnStyleLoaded {
@@ -162,6 +164,7 @@ class HomeFragment : Fragment() {
                 pb.visibility = View.INVISIBLE
                 FINDING_STATION = false
                 uiUtilInstance.showToast(ctx, viewModel.message.value.toString())
+                Log.e(TAG, mResponse.toString())
                 if (viewModel.successful.value == true) {
                     markStations(mResponse)
                 }

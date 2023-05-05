@@ -1,11 +1,12 @@
 package com.example.ecoroute.utils
 
 import android.content.Context
+import androidx.annotation.Keep
 import com.example.ecoroute.models.EVCar
 import com.example.ecoroute.ui.user.EVCarStorage
 import com.mapbox.geojson.Point
 import com.squareup.moshi.Moshi
-
+@Keep
 object URLBuilder {
 
     fun createStationsInVicinityQuery(pt: Point): String {

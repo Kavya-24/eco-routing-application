@@ -12,6 +12,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import androidx.annotation.Keep
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -52,7 +53,7 @@ import com.mapbox.navigation.ui.maps.camera.NavigationCamera
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 import com.mapbox.navigation.ui.maps.camera.lifecycle.NavigationBasicGesturesHandler
 import com.mapbox.navigation.ui.maps.camera.transition.NavigationCameraTransitionOptions
-//import com.mapbox.navigation.ui.maps.camera.view.MapboxRecenterButton
+import com.mapbox.navigation.ui.maps.camera.view.MapboxRecenterButton
 import com.mapbox.navigation.ui.maps.location.NavigationLocationProvider
 import com.mapbox.navigation.ui.tripprogress.model.*
 import com.mapbox.search.OfflineSearchEngineSettings
@@ -71,6 +72,7 @@ import java.util.*
 
 @SuppressLint("LogNotTimber", "StringFormatInvalid", "SetTextI18n")
 @ExperimentalPreviewMapboxNavigationAPI
+@Keep
 class RouteFragment : Fragment() {
 
     private val TAG = RouteFragment::class.java.simpleName

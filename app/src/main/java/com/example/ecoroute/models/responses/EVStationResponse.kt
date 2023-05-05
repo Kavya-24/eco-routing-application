@@ -1,8 +1,9 @@
 package com.example.ecoroute.models.responses
 
 
+import androidx.annotation.Keep
 import com.squareup.moshi.Json
-
+@Keep
 data class EVStationResponse(
     @Json(name = "results")
     val results: List<Result>,
