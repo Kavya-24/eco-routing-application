@@ -403,7 +403,7 @@ class VisualPathActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_visual_path)
-        val intent_content = intent
+
         val coordinate_string = intent.getStringExtra("coordinate")
 
         Log.e(TAG, coordinate_string.toString())

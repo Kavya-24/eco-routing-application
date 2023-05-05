@@ -353,6 +353,7 @@ class RouteFragment : Fragment() {
             path_string += item.lat.toDouble().toString() + ";"
         }
 
+        Log.e(TAG, "coordinates: " + path_string)
         val intent = Intent(requireContext(), VisualPathActivity::class.java)
         intent.putExtra("coordinate", path_string)
         startActivity(intent)
