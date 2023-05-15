@@ -1,6 +1,6 @@
 package com.example.ecoroute.ui
 
-
+import kotlinx.serialization.decodeFromString
 import com.example.ecoroute.R
 import android.annotation.SuppressLint
 import android.content.res.Configuration
@@ -15,6 +15,7 @@ import androidx.annotation.Keep
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
+import com.example.ecoroute.models.responses.EcorouteAPIResponse
 import com.example.ecoroute.utils.ApplicationUtils
 import com.example.ecoroute.utils.MapUtils
 import com.example.ecoroute.utils.UiUtils
@@ -94,6 +95,7 @@ import com.mapbox.navigation.ui.voice.model.SpeechError
 import com.mapbox.navigation.ui.voice.model.SpeechValue
 import com.mapbox.navigation.ui.voice.model.SpeechVolume
 import com.mapbox.navigation.ui.voice.view.MapboxSoundButton
+import kotlinx.serialization.json.Json
 import java.util.Date
 import java.util.Locale
 @Keep
@@ -426,8 +428,13 @@ class VisualPathActivity : AppCompatActivity() {
         setContentView(R.layout.activity_visual_path)
 
         val coordinate_string = intent.getStringExtra("coordinate")
+        val name_string = intent.getStringExtra("name")
+        val timestamp_string = intent.getStringExtra("timestamp")
+        val port_string = intent.getStringExtra("port")
+        val soc_string = intent.getStringExtra("soc")
 
         Log.e(TAG, coordinate_string.toString())
+
 
         annotationApi = findViewById<MapView>(R.id.path_mapView).annotations
         pointAnnotationManager = annotationApi.createPointAnnotationManager()
@@ -574,6 +581,42 @@ class VisualPathActivity : AppCompatActivity() {
         }
 
         start_navigation(coordinate_string)
+        mark_annotations(coordinate_string,name_string!!, port_string!!, timestamp_string!!,soc_string!!)
+
+    }
+
+    private fun mark_annotations(coordinateString: String?,nameString: String, portString: String, timestampString: String, socString: String) {
+
+        if (coordinateString == null || coordinateString.isEmpty()) {
+            Toast.makeText(this, "Unable to load navigation path", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val coordinates = coordinateString.split(';')
+        val names = nameString.split(',')
+        val ports = portString.split(',')
+        val socs = socString.split(',')
+        val timestamps = timestampString.split(',')
+
+        for(idx in names.indices){
+
+            Log.e(TAG, "Idx = $idx, and name = ${names[idx]}")
+            if(names[idx].isEmpty()){
+                continue
+            }
+
+            if(names[idx] == "source"){
+                mark(coordinates[idx].split((','))[1].toDouble(), coordinates[idx].split((','))[0].toDouble(),R.drawable.source_location,2.0,names[idx] + "(SOC: " + socs[idx] + ")")
+            }
+            else if(names[idx] == "destination"){
+                mark(coordinates[idx].split((','))[1].toDouble(), coordinates[idx].split((','))[0].toDouble(),R.drawable.destination_locatiom,2.0,names[idx] +  "(SOC: " + socs[idx] + ")")
+            }
+            else{
+                mark(coordinates[idx].split((','))[1].toDouble(), coordinates[idx].split((','))[0].toDouble(),R.drawable.ic_baseline_location_on_24,2.0,names[idx] + " (Port: " + ports[idx] + ")")
+            }
+
+        }
+
 
     }
 
@@ -761,13 +804,6 @@ class VisualPathActivity : AppCompatActivity() {
         mapboxNavigation.setNavigationRoutes(routes.toNavigationRoutes(routerOrigin))
 
 
-        //mark the source and destination
-        mark(path_list[0].latitude(), path_list[0].longitude(), R.drawable.source_location)
-        mark(
-            path_list[path_list.size - 1].latitude(),
-            path_list[path_list.size - 1].longitude(),
-            R.drawable.destination_locatiom
-        )
 
 
         findViewById<MapboxSoundButton>(R.id.path_soundButton).visibility = View.GONE
@@ -799,7 +835,8 @@ class VisualPathActivity : AppCompatActivity() {
         onBackPressed()
     }
 
-    private fun mark(_latitude: Double, _longitude: Double, dr: Int) {
+    private fun mark(_latitude: Double, _longitude: Double, dr: Int, sz : Double, caption : String) {
+
 
         uiUtilInstance.bitmapFromDrawableRes(
             this, dr
@@ -810,6 +847,9 @@ class VisualPathActivity : AppCompatActivity() {
                     _longitude, _latitude
                 )
             ).withIconImage(it).withTextAnchor(TextAnchor.TOP)
+            pointAnnotationOptions.iconSize = sz
+            pointAnnotationOptions.textField = caption
+            pointAnnotationOptions.textSize= 8.0
 
             pointAnnotationManager.create(pointAnnotationOptions)
 

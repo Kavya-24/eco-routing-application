@@ -1,5 +1,6 @@
 package com.example.ecoroute.ui.route
-
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.Configuration
@@ -19,7 +20,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.example.ecoroute.R
-import com.example.ecoroute.models.responses.EcorouteResponse
+import com.example.ecoroute.models.responses.EcorouteAPIResponse
 import com.example.ecoroute.ui.VisualPathActivity
 import com.example.ecoroute.ui.user.EVCarStorage
 import com.example.ecoroute.utils.*
@@ -53,7 +54,6 @@ import com.mapbox.navigation.ui.maps.camera.NavigationCamera
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 import com.mapbox.navigation.ui.maps.camera.lifecycle.NavigationBasicGesturesHandler
 import com.mapbox.navigation.ui.maps.camera.transition.NavigationCameraTransitionOptions
-import com.mapbox.navigation.ui.maps.camera.view.MapboxRecenterButton
 import com.mapbox.navigation.ui.maps.location.NavigationLocationProvider
 import com.mapbox.navigation.ui.tripprogress.model.*
 import com.mapbox.search.OfflineSearchEngineSettings
@@ -68,6 +68,7 @@ import com.mapbox.search.ui.view.SearchResultsView
 import kotlinx.android.synthetic.main.fragment_home.*
 import kotlinx.android.synthetic.main.fragment_route.*
 import java.util.*
+import kotlin.collections.ArrayList
 
 
 @SuppressLint("LogNotTimber", "StringFormatInvalid", "SetTextI18n")
@@ -330,7 +331,7 @@ class RouteFragment : Fragment() {
                         FINDING_PATH = false
                         uiUtilInstance.showToast(ctx, viewModel.message.value.toString())
                         Log.e(TAG, mResponse.toString())
-                    //                        findRoute(mResponse)
+                        findRoute(mResponse)
 
                     } else {
                         pb.visibility = View.VISIBLE
@@ -345,20 +346,31 @@ class RouteFragment : Fragment() {
         }
     }
 
-    private fun findRoute(mResponse: ArrayList<EcorouteResponse.EcorouteResponseItem>) {
+    private fun findRoute(mResponse: ArrayList<EcorouteAPIResponse.EcorouteAPIResponseItem>) {
 
+        var coordiante_string = ""
+        var point_name = ""
+        var point_timestamps = ""
+        var point_ports = ""
+        var point_soc = ""
 
-        val path_list = mutableListOf<Point>()
-        var path_string = ""
         for (item in mResponse) {
-            path_list.add(Point.fromLngLat(item.lon.toDouble(), item.lat.toDouble()))
-            path_string += item.lon.toDouble().toString() + ","
-            path_string += item.lat.toDouble().toString() + ";"
+
+            coordiante_string += item.longitude.toDouble().toString() + ","
+            coordiante_string += item.latitude.toDouble().toString() + ";"
+            point_name += item.name.toString()  + ","
+            point_timestamps += item.timestamp.toString()  + ","
+            point_ports += item.port.toString()  + ","
+            point_soc += item.soc.toString()  + ","
         }
 
-        Log.e(TAG, "coordinates: " + path_string)
+
         val intent = Intent(requireContext(), VisualPathActivity::class.java)
-        intent.putExtra("coordinate", path_string)
+        intent.putExtra("coordinate", coordiante_string)
+        intent.putExtra("name", point_name)
+        intent.putExtra("timestamp", point_timestamps)
+        intent.putExtra("port", point_ports)
+        intent.putExtra("soc", point_soc)
         startActivity(intent)
 
 //
