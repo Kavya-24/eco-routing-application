@@ -76,6 +76,7 @@
     <string name="age_days">Age (days)</string>
     <string name="battery_kwh">Battery (KwH)</string>
     <string name="select_connector">Select Connector</string>
+    <string name="show_names">Show Names</string>
 
 
 </resources>

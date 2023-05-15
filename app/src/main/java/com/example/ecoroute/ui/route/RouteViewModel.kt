@@ -9,6 +9,7 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.ecoroute.interfaces.RetrofitClient
+import com.example.ecoroute.models.responses.EcorouteAPIResponse
 import com.example.ecoroute.models.responses.EcorouteResponse
 import com.example.ecoroute.utils.UiUtils
 import com.google.android.material.snackbar.Snackbar
@@ -27,26 +28,26 @@ class RouteViewModel : ViewModel() {
     var message: MutableLiveData<String> = MutableLiveData()
     var in_progress : MutableLiveData<Boolean> = MutableLiveData()
 
-    private var mResponse: MutableLiveData<ArrayList<EcorouteResponse.EcorouteResponseItem>> =
+    private var mResponse: MutableLiveData<ArrayList<EcorouteAPIResponse.EcorouteAPIResponseItem>> =
         MutableLiveData()
 
-    fun getOptimalPath(url: String, pb: ProgressBar, csl: ConstraintLayout): MutableLiveData<ArrayList<EcorouteResponse.EcorouteResponseItem>> {
+    fun getOptimalPath(url: String, pb: ProgressBar, csl: ConstraintLayout): MutableLiveData<ArrayList<EcorouteAPIResponse.EcorouteAPIResponseItem>> {
 
         mResponse = optimalPath(url,pb,csl)
         return mResponse
     }
 
 
-    private fun optimalPath(url: String, pb: ProgressBar, csl: ConstraintLayout): MutableLiveData<ArrayList<EcorouteResponse.EcorouteResponseItem>> {
+    private fun optimalPath(url: String, pb: ProgressBar, csl: ConstraintLayout): MutableLiveData<ArrayList<EcorouteAPIResponse.EcorouteAPIResponseItem>> {
 
 
         Log.e(TAG, "PathURL:  $url")
 
         ecorouteService.getEcoroutePath(url)
             .enqueue(object :
-                retrofit2.Callback<ArrayList<EcorouteResponse.EcorouteResponseItem>> {
+                retrofit2.Callback<ArrayList<EcorouteAPIResponse.EcorouteAPIResponseItem>> {
                 override fun onFailure(
-                    call: Call<ArrayList<EcorouteResponse.EcorouteResponseItem>>,
+                    call: Call<ArrayList<EcorouteAPIResponse.EcorouteAPIResponseItem>>,
                     t: Throwable
                 ) {
                     successful.value = false
@@ -59,8 +60,8 @@ class RouteViewModel : ViewModel() {
                 }
 
                 override fun onResponse(
-                    call: Call<ArrayList<EcorouteResponse.EcorouteResponseItem>>,
-                    response: Response<ArrayList<EcorouteResponse.EcorouteResponseItem>>
+                    call: Call<ArrayList<EcorouteAPIResponse.EcorouteAPIResponseItem>>,
+                    response: Response<ArrayList<EcorouteAPIResponse.EcorouteAPIResponseItem>>
                 ) {
 
                     in_progress.value = false

@@ -28,8 +28,8 @@ android {
             manifestPlaceholders = [usesCleartextTraffic: "false"]
         }
         debug {
-            minifyEnabled true
-            shrinkResources true
+            minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             manifestPlaceholders = [usesCleartextTraffic: "false"]
         }
@@ -56,6 +56,18 @@ android {
     }
     packagingOptions {
         pickFirst "lib/**/libc++_shared.so"
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/INDEX.LIST'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/license.txt'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/NOTICE.txt'
+        exclude 'META-INF/notice.txt'
+        exclude 'META-INF/ASL2.0'
+        exclude("META-INF/*.kotlin_module")
+        exclude 'org/apache/http/version.properties'
+        exclude 'org/apache/http/client/version.properties'
     }
 
 }

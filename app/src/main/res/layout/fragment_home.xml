@@ -27,6 +27,17 @@
         android:visibility="invisible"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+<!--    <com.google.android.material.switchmaterial.SwitchMaterial-->
+<!--        android:id="@+id/material_switch"-->
+<!--        android:layout_width="wrap_content"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:checked="true"-->
+<!--        app:thumbTint="@color/red_light"-->
+<!--        android:layout_marginStart="@dimen/space"-->
+<!--        android:text="@string/show_names"-->
+<!--        app:layout_constraintBottom_toBottomOf="@id/info_home"-->
+<!--        app:layout_constraintStart_toEndOf="@id/info_home"-->
+<!--        app:layout_constraintTop_toTopOf="@id/info_home" />-->
 
     <ImageView
         android:id="@+id/info_home"

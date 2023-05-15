@@ -1,6 +1,7 @@
 package com.example.ecoroute.interfaces
 
 import androidx.annotation.Keep
+import com.example.ecoroute.models.responses.EcorouteAPIResponse
 import com.example.ecoroute.models.responses.EcorouteResponse
 import com.example.ecoroute.models.responses.NearbyStationsResponse
 import retrofit2.Call
@@ -20,6 +21,6 @@ interface EcorouteInterface {
     @GET()
     fun getEcoroutePath(
         @Url ecoroute_path : String
-    ) : Call<ArrayList<EcorouteResponse.EcorouteResponseItem>>
+    ) : Call<ArrayList<EcorouteAPIResponse.EcorouteAPIResponseItem>>
 
 }

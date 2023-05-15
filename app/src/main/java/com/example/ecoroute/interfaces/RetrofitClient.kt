@@ -1,6 +1,7 @@
 package com.example.ecoroute.interfaces
 
 import androidx.annotation.Keep
+import com.example.ecoroute.models.responses.EcorouteAPIResponse
 import com.example.ecoroute.models.responses.EcorouteResponse
 import com.example.ecoroute.models.responses.NearbyStationsResponse
 import com.jakewharton.retrofit2.adapter.kotlin.coroutines.CoroutineCallAdapterFactory
@@ -50,11 +51,11 @@ object RetrofitClient {
 
         class EcoroutePathClientAdapater {
             @ToJson
-            fun arrayListToJson(list: ArrayList<EcorouteResponse.EcorouteResponseItem>): List<EcorouteResponse.EcorouteResponseItem> =
+            fun arrayListToJson(list: ArrayList<EcorouteAPIResponse.EcorouteAPIResponseItem>): List<EcorouteAPIResponse.EcorouteAPIResponseItem> =
                 list
 
             @FromJson
-            fun arrayListFromJson(list: List<EcorouteResponse.EcorouteResponseItem>): ArrayList<EcorouteResponse.EcorouteResponseItem> =
+            fun arrayListFromJson(list: List<EcorouteAPIResponse.EcorouteAPIResponseItem>): ArrayList<EcorouteAPIResponse.EcorouteAPIResponseItem> =
                 ArrayList(list)
         }
 

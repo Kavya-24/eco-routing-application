@@ -329,7 +329,8 @@ class RouteFragment : Fragment() {
                         pb.visibility = View.INVISIBLE
                         FINDING_PATH = false
                         uiUtilInstance.showToast(ctx, viewModel.message.value.toString())
-                        findRoute(mResponse)
+                        Log.e(TAG, mResponse.toString())
+                    //                        findRoute(mResponse)
 
                     } else {
                         pb.visibility = View.VISIBLE
