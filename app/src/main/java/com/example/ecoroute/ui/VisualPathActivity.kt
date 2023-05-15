@@ -1,6 +1,5 @@
 package com.example.ecoroute.ui
 
-import kotlinx.serialization.decodeFromString
 import com.example.ecoroute.R
 import android.annotation.SuppressLint
 import android.content.Context
@@ -10,7 +9,6 @@ import android.location.Location
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.view.LayoutInflater
 import android.view.View
 import android.widget.ImageView
 import android.widget.Toast
@@ -20,22 +18,15 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 
-import com.example.ecoroute.models.Statement
-import com.example.ecoroute.models.responses.EcorouteAPIResponse
 import com.example.ecoroute.utils.ApplicationUtils
 import com.example.ecoroute.utils.MapUtils
 import com.example.ecoroute.utils.UiUtils
-import com.google.android.material.snackbar.Snackbar
-import com.mapbox.api.directions.v5.models.Bearing
 import com.mapbox.api.directions.v5.models.DirectionsRoute
 import com.mapbox.api.directions.v5.models.RouteOptions
 import com.mapbox.bindgen.Expected
 import com.mapbox.geojson.Point
 import com.mapbox.maps.EdgeInsets
-import com.mapbox.maps.Image
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
 import com.mapbox.maps.extension.style.layers.properties.generated.TextAnchor
@@ -56,16 +47,15 @@ import com.mapbox.navigation.base.extensions.applyLanguageAndVoiceUnitOptions
 import com.mapbox.navigation.base.formatter.DistanceFormatterOptions
 import com.mapbox.navigation.base.options.NavigationOptions
 import com.mapbox.navigation.base.route.*
-import com.mapbox.navigation.base.trip.model.RouteProgress
 import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.MapboxNavigationProvider
 import com.mapbox.navigation.core.directions.session.RoutesObserver
 import com.mapbox.navigation.core.formatter.MapboxDistanceFormatter
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
-import com.mapbox.navigation.core.lifecycle.MapboxNavigationObserver
 //import com.mapbox.navigation.core.lifecycle.requireMapboxNavigation
 import com.mapbox.navigation.core.replay.MapboxReplayer
 import com.mapbox.navigation.core.replay.ReplayLocationEngine
+import com.mapbox.navigation.core.replay.history.ReplayEventBase
 import com.mapbox.navigation.core.replay.route.ReplayProgressObserver
 import com.mapbox.navigation.core.replay.route.ReplayRouteMapper
 import com.mapbox.navigation.core.trip.session.LocationMatcherResult
@@ -76,7 +66,6 @@ import com.mapbox.navigation.ui.base.util.MapboxNavigationConsumer
 import com.mapbox.navigation.ui.maneuver.api.MapboxManeuverApi
 import com.mapbox.navigation.ui.maneuver.view.MapboxManeuverView
 
-import com.mapbox.navigation.ui.maps.NavigationStyles
 import com.mapbox.navigation.ui.maps.camera.NavigationCamera
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 import com.mapbox.navigation.ui.maps.camera.lifecycle.NavigationBasicGesturesHandler
@@ -108,7 +97,6 @@ import com.mapbox.navigation.ui.voice.model.SpeechVolume
 import com.mapbox.navigation.ui.voice.view.MapboxSoundButton
 import kotlinx.android.synthetic.main.activity_visual_path.*
 import kotlinx.android.synthetic.main.fragment_home.*
-import kotlinx.serialization.json.Json
 import java.lang.Math.ceil
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -116,6 +104,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatter.*
 import java.util.Date
 import java.util.Locale
+
 @Keep
 @OptIn(ExperimentalPreviewMapboxNavigationAPI::class)
 @SuppressLint("MissingPermission")
@@ -600,10 +589,16 @@ class VisualPathActivity : AppCompatActivity() {
             enabled = true
         }
 
-        start_navigation(coordinate_string)
-        mark_annotations(coordinate_string,name_string!!, port_string!!, timestamp_string!!,soc_string!!)
+        start_navigation(coordinate_string, timestamp_string)
+        mark_annotations(
+            coordinate_string,
+            name_string!!,
+            port_string!!,
+            timestamp_string!!,
+            soc_string!!
+        )
         findViewById<ImageView>(R.id.info_visual_path).setOnClickListener {
-                generate_log(name_string, timestamp_string, port_string,soc_string)
+            generate_log(name_string, timestamp_string, port_string, soc_string)
         }
 
     }
@@ -621,7 +616,13 @@ class VisualPathActivity : AppCompatActivity() {
         val istFormatter = DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy")
         return istFormatter.format(dateTime)
     }
-    private fun generate_log(nameString: String, timestampString: String, portString: String, socString: String){
+
+    private fun generate_log(
+        nameString: String,
+        timestampString: String,
+        portString: String,
+        socString: String
+    ) {
 
         val names = nameString.split(',')
         val ports = portString.split(',')
@@ -629,20 +630,21 @@ class VisualPathActivity : AppCompatActivity() {
         val timestamps = timestampString.split(',')
         val statements = mutableListOf<String>()
 
-        val n = names.size-1
+        val n = names.size - 1
         //source
         statements.add("Start from the source at ${convertUTCtoIST(timestamps[0])} with ${socs[0]} charge")
 
         //stations
-        for(i in 1..n-2){
+        for (i in 1..n - 2) {
             statements.add("Reach charging station ${names[i]} at ${convertUTCtoIST(timestamps[i])} and charge at port ${ports[i]}")
         }
 
         //destination
-        statements.add("Reach destination at ${convertUTCtoIST(timestamps[n-1])} with ${socs[0]} charge")
+        statements.add("Reach destination at ${convertUTCtoIST(timestamps[n - 1])} with ${socs[0]} charge")
         showStatementsDialog(this, statements)
         return
     }
+
     fun showStatementsDialog(context: Context, statements: List<String>) {
 
         val builder = AlertDialog.Builder(context)
@@ -653,7 +655,13 @@ class VisualPathActivity : AppCompatActivity() {
     }
 
 
-    private fun mark_annotations(coordinateString: String?,nameString: String, portString: String, timestampString: String, socString: String) {
+    private fun mark_annotations(
+        coordinateString: String?,
+        nameString: String,
+        portString: String,
+        timestampString: String,
+        socString: String
+    ) {
 
         if (coordinateString == null || coordinateString.isEmpty()) {
             Toast.makeText(this, "Unable to load navigation path", Toast.LENGTH_SHORT).show()
@@ -666,21 +674,37 @@ class VisualPathActivity : AppCompatActivity() {
         val socs = socString.split(',')
         val timestamps = timestampString.split(',')
 
-        for(idx in names.indices){
+        for (idx in names.indices) {
 
             Log.e(TAG, "Idx = $idx, and name = ${names[idx]}")
-            if(names[idx].isEmpty()){
+            if (names[idx].isEmpty()) {
                 continue
             }
 
-            if(names[idx] == "source"){
-                mark(coordinates[idx].split((','))[1].toDouble(), coordinates[idx].split((','))[0].toDouble(),R.drawable.source_location,2.0,names[idx] + "(SOC: " + socs[idx] + ")")
-            }
-            else if(names[idx] == "destination"){
-                mark(coordinates[idx].split((','))[1].toDouble(), coordinates[idx].split((','))[0].toDouble(),R.drawable.destination_locatiom,2.0,names[idx] +  "(SOC: " + socs[idx] + ")")
-            }
-            else{
-                mark(coordinates[idx].split((','))[1].toDouble(), coordinates[idx].split((','))[0].toDouble(),R.drawable.ic_baseline_location_on_24,2.0,names[idx] + " (Port: " + ports[idx] + ")")
+            if (names[idx] == "source") {
+                mark(
+                    coordinates[idx].split((','))[1].toDouble(),
+                    coordinates[idx].split((','))[0].toDouble(),
+                    R.drawable.source_location,
+                    2.0,
+                    names[idx] + "(SOC: " + socs[idx] + ")"
+                )
+            } else if (names[idx] == "destination") {
+                mark(
+                    coordinates[idx].split((','))[1].toDouble(),
+                    coordinates[idx].split((','))[0].toDouble(),
+                    R.drawable.destination_locatiom,
+                    2.0,
+                    names[idx] + "(SOC: " + socs[idx] + ")"
+                )
+            } else {
+                mark(
+                    coordinates[idx].split((','))[1].toDouble(),
+                    coordinates[idx].split((','))[0].toDouble(),
+                    R.drawable.ic_baseline_location_on_24,
+                    2.0,
+                    names[idx] + " (Port: " + ports[idx] + ")"
+                )
             }
 
         }
@@ -689,7 +713,7 @@ class VisualPathActivity : AppCompatActivity() {
     }
 
 
-    private fun start_navigation(coordinateString: String?) {
+    private fun start_navigation(coordinateString: String?, timestamp_string: String?) {
 
 
         if (coordinateString == null || coordinateString.isEmpty()) {
@@ -720,7 +744,13 @@ class VisualPathActivity : AppCompatActivity() {
                     routerOrigin: RouterOrigin
                 ) {
 
-                    setRouteAndStartNavigation(routes, path_list, routerOrigin)
+                    setRouteAndStartNavigation(
+                        routes,
+                        path_list,
+                        routerOrigin,
+                        coordinateString,
+                        timestamp_string!!
+                    )
 
                 }
 
@@ -832,21 +862,39 @@ class VisualPathActivity : AppCompatActivity() {
         voiceInstructionsPlayer.shutdown()
     }
 
-    private fun replayOriginLocation() {
-//        mapboxReplayer.pushEvents(
-//            listOf(
-//                ReplayRouteMapper.mapToUpdateLocation(
-//                    Date().time.toDouble(),
-//                    Point.fromLngLat(-122.39726512303575, 37.785128345296805)
-//                )
-//            )
-//        )
-//        mapboxReplayer.playFirstLocation()
-//        mapboxReplayer.playbackSpeed(3.0)
+    private fun replayOriginLocation(coordinateString: String, timestampString: String) {
+        val replayEvents = mutableListOf<ReplayEventBase>()
+        val coordinates = coordinateString.split(';')
+        val timestamps = timestampString.split(',')
+        for (idx in coordinates.indices) {
+            if (coordinates[idx].isEmpty()) {
+                continue
+            } else {
+                replayEvents.add(
+                    ReplayRouteMapper.mapToUpdateLocation(
+                        ceil(timestamps[idx].toDouble()),
+                        Point.fromLngLat(
+                            coordinates[idx].split(',')[0].toDouble(),
+                            coordinates[idx].split(',')[1].toDouble()
+                        )
+                    )
+                )
+            }
+        }
+
+        mapboxReplayer.pushEvents(
+            replayEvents
+        )
+        mapboxReplayer.playFirstLocation()
+        mapboxReplayer.playbackSpeed(10.0)
     }
 
     private fun setRouteAndStartNavigation(
-        routes: List<DirectionsRoute>, path_list: MutableList<Point>, routerOrigin: RouterOrigin
+        routes: List<DirectionsRoute>,
+        path_list: MutableList<Point>,
+        routerOrigin: RouterOrigin,
+        coordinateString: String,
+        timestampString: String
     ) {
 
         NAVIGATION_IN_PROGRESS = true
@@ -879,8 +927,7 @@ class VisualPathActivity : AppCompatActivity() {
         findViewById<MapboxRouteOverviewButton>(R.id.path_routeOverview).visibility = View.GONE
         findViewById<CardView>(R.id.path_tripProgressCard).visibility = View.GONE
 
-
-        //startSimulation(routes.first())
+        replayOriginLocation(coordinateString, timestampString)
 
         navigationCamera.requestNavigationCameraToOverview()
 
@@ -903,7 +950,7 @@ class VisualPathActivity : AppCompatActivity() {
         onBackPressed()
     }
 
-    private fun mark(_latitude: Double, _longitude: Double, dr: Int, sz : Double, caption : String) {
+    private fun mark(_latitude: Double, _longitude: Double, dr: Int, sz: Double, caption: String) {
 
 
         uiUtilInstance.bitmapFromDrawableRes(
@@ -917,7 +964,7 @@ class VisualPathActivity : AppCompatActivity() {
             ).withIconImage(it).withTextAnchor(TextAnchor.TOP)
             pointAnnotationOptions.iconSize = sz
             pointAnnotationOptions.textField = caption
-            pointAnnotationOptions.textSize= 8.0
+            pointAnnotationOptions.textSize = 12.0
 
             pointAnnotationManager.create(pointAnnotationOptions)
 
