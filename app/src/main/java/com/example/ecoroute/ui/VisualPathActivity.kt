@@ -3,28 +3,39 @@ package com.example.ecoroute.ui
 import kotlinx.serialization.decodeFromString
 import com.example.ecoroute.R
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.location.Location
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.annotation.Keep
+import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+
+import com.example.ecoroute.models.Statement
 import com.example.ecoroute.models.responses.EcorouteAPIResponse
 import com.example.ecoroute.utils.ApplicationUtils
 import com.example.ecoroute.utils.MapUtils
 import com.example.ecoroute.utils.UiUtils
+import com.google.android.material.snackbar.Snackbar
 import com.mapbox.api.directions.v5.models.Bearing
 import com.mapbox.api.directions.v5.models.DirectionsRoute
 import com.mapbox.api.directions.v5.models.RouteOptions
 import com.mapbox.bindgen.Expected
 import com.mapbox.geojson.Point
 import com.mapbox.maps.EdgeInsets
+import com.mapbox.maps.Image
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
 import com.mapbox.maps.extension.style.layers.properties.generated.TextAnchor
@@ -95,12 +106,20 @@ import com.mapbox.navigation.ui.voice.model.SpeechError
 import com.mapbox.navigation.ui.voice.model.SpeechValue
 import com.mapbox.navigation.ui.voice.model.SpeechVolume
 import com.mapbox.navigation.ui.voice.view.MapboxSoundButton
+import kotlinx.android.synthetic.main.activity_visual_path.*
+import kotlinx.android.synthetic.main.fragment_home.*
 import kotlinx.serialization.json.Json
+import java.lang.Math.ceil
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatter.*
 import java.util.Date
 import java.util.Locale
 @Keep
 @OptIn(ExperimentalPreviewMapboxNavigationAPI::class)
 @SuppressLint("MissingPermission")
+@RequiresApi(Build.VERSION_CODES.O)
 class VisualPathActivity : AppCompatActivity() {
 
 
@@ -439,6 +458,7 @@ class VisualPathActivity : AppCompatActivity() {
         annotationApi = findViewById<MapView>(R.id.path_mapView).annotations
         pointAnnotationManager = annotationApi.createPointAnnotationManager()
 
+
         // initialize Navigation Camera
         viewportDataSource =
             MapboxNavigationViewportDataSource(findViewById<MapView>(R.id.path_mapView).getMapboxMap())
@@ -548,10 +568,10 @@ class VisualPathActivity : AppCompatActivity() {
             clearRouteAndStopNavigation()
         }
         findViewById<MapboxRecenterButton>(R.id.path_recenter).setOnClickListener {
-            navigationCamera.requestNavigationCameraToFollowing()
-            findViewById<MapboxRouteOverviewButton>(R.id.path_routeOverview).showTextAndExtend(
-                BUTTON_ANIMATION_DURATION
-            )
+//            navigationCamera.requestNavigationCameraToFollowing()
+//            findViewById<MapboxRouteOverviewButton>(R.id.path_routeOverview).showTextAndExtend(
+//                BUTTON_ANIMATION_DURATION
+//            )
         }
         findViewById<MapboxRouteOverviewButton>(R.id.path_routeOverview).setOnClickListener {
             navigationCamera.requestNavigationCameraToOverview()
@@ -582,8 +602,56 @@ class VisualPathActivity : AppCompatActivity() {
 
         start_navigation(coordinate_string)
         mark_annotations(coordinate_string,name_string!!, port_string!!, timestamp_string!!,soc_string!!)
+        findViewById<ImageView>(R.id.info_visual_path).setOnClickListener {
+                generate_log(name_string, timestamp_string, port_string,soc_string)
+        }
 
     }
+
+
+    fun convertUTCtoIST(ut: String): String {
+        val unixTimestamp = kotlin.math.ceil(ut.toDouble()).toLong()
+        val dateTime = LocalDateTime.ofEpochSecond(
+            unixTimestamp,
+            0,
+            ZoneId.of("UTC").rules.getOffset(LocalDateTime.now())
+        )
+            .atZone(ZoneId.of("UTC"))
+            .withZoneSameInstant(ZoneId.of("Asia/Kolkata"))
+        val istFormatter = DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy")
+        return istFormatter.format(dateTime)
+    }
+    private fun generate_log(nameString: String, timestampString: String, portString: String, socString: String){
+
+        val names = nameString.split(',')
+        val ports = portString.split(',')
+        val socs = socString.split(',')
+        val timestamps = timestampString.split(',')
+        val statements = mutableListOf<String>()
+
+        val n = names.size-1
+        //source
+        statements.add("Start from the source at ${convertUTCtoIST(timestamps[0])} with ${socs[0]} charge")
+
+        //stations
+        for(i in 1..n-2){
+            statements.add("Reach charging station ${names[i]} at ${convertUTCtoIST(timestamps[i])} and charge at port ${ports[i]}")
+        }
+
+        //destination
+        statements.add("Reach destination at ${convertUTCtoIST(timestamps[n-1])} with ${socs[0]} charge")
+        showStatementsDialog(this, statements)
+        return
+    }
+    fun showStatementsDialog(context: Context, statements: List<String>) {
+
+        val builder = AlertDialog.Builder(context)
+        builder.setTitle(title)
+        builder.setMessage(statements.joinToString("\n"))
+        builder.setPositiveButton("OK", null)
+        builder.create().show()
+    }
+
 
     private fun mark_annotations(coordinateString: String?,nameString: String, portString: String, timestampString: String, socString: String) {
 
